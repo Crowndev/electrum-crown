@@ -82,11 +82,11 @@ class BTCAmountEdit(AmountEdit):
     def _base_unit(self):
         p = self.decimal_point()
         if p == 8:
-            return 'BTC'
+            return 'CRW'
         if p == 5:
-            return 'mBTC'
+            return 'mCRW'
         if p == 2:
-            return 'bits'
+            return 'µCRW'
         raise Exception('Unknown base unit')
 
     def get_amount(self):
@@ -108,9 +108,9 @@ class FeerateEdit(BTCAmountEdit):
     def _base_unit(self):
         p = self.decimal_point()
         if p == 2:
-            return 'mBTC/kB'
+            return 'mCRW/kB'
         if p == 0:
-            return 'sat/byte'
+            return 'µCRW/byte'
         raise Exception('Unknown base unit')
 
     def get_amount(self):
