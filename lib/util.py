@@ -431,11 +431,14 @@ def time_difference(distance_in_time, include_seconds):
         return "over %d years" % (round(distance_in_minutes / 525600))
 
 mainnet_block_explorers = {
+    'crw.crown.tech': ('https://crw-bitcore.crown.tech/',
+                       {'tx': 'transactions/', 'addr': 'addresses/'}),
+    'crw2.crown.tech': ('https://crw2-bitcore.crown.tech/',
+                        {'tx': 'Transaction/', 'addr': 'Address/'}),
     'cryptoid.info': ('https://chainz.cryptoid.info/crw/',
-                        {'tx': 'transactions/', 'addr': 'addresses/'}),
+                      {'tx': 'transactions/', 'addr': 'addresses/'}),
     'crownlab.eu': ('https:http://ex.crownlab.eu/',
                         {'tx': 'Transaction/', 'addr': 'Address/'}),
-
     'system default': ('blockchain:/',
                         {'tx': 'tx/', 'addr': 'address/'}),
 }
