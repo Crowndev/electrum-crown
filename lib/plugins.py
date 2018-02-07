@@ -442,8 +442,8 @@ class DeviceMgr(ThreadJob, PrintError):
         # The user input has wrong PIN or passphrase, or cancelled input,
         # or it is not pairable
         raise DeviceUnpairableError(
-            _('Electrum cannot pair with your %s.\n\n'
-              'Before you request bitcoins to be sent to addresses in this '
+            _('Electrum Crown cannot pair with your %s.\n\n'
+              'Before you request crowns to be sent to addresses in this '
               'wallet, ensure you can pair with your device, or that you have '
               'its seed (and passphrase, if any).  Otherwise all bitcoins you '
               'receive will be unspendable.') % plugin.device)
