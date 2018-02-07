@@ -432,13 +432,13 @@ def time_difference(distance_in_time, include_seconds):
 
 mainnet_block_explorers = {
     'crw.crown.tech': ('https://crw-bitcore.crown.tech/',
-                       {'tx': 'transactions/', 'addr': 'addresses/'}),
+                       {'tx': 'tx/', 'addr': 'address/'}),
     'crw2.crown.tech': ('https://crw2-bitcore.crown.tech/',
-                        {'tx': 'Transaction/', 'addr': 'Address/'}),
+                        {'tx': 'tx/', 'addr': 'address/'}),
     'cryptoid.info': ('https://chainz.cryptoid.info/crw/',
                       {'tx': 'transactions/', 'addr': 'addresses/'}),
     'crownlab.eu': ('https:http://ex.crownlab.eu/',
-                        {'tx': 'Transaction/', 'addr': 'Address/'}),
+                        {'tx': 'tx', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                         {'tx': 'tx/', 'addr': 'address/'}),
 }
