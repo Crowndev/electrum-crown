@@ -437,7 +437,7 @@ mainnet_block_explorers = {
                         {'tx': 'tx/', 'addr': 'address/'}),
     'cryptoid.info': ('https://chainz.cryptoid.info/crw/',
                       {'tx': 'transactions/', 'addr': 'addresses/'}),
-    'crownlab.eu': ('https://ex.crownlab.eu/',
+    'crownlab.eu': ('http://ex.crownlab.eu/',
                         {'tx': 'tx', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                         {'tx': 'tx/', 'addr': 'address/'}),
