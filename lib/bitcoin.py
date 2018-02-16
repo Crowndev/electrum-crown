@@ -77,11 +77,15 @@ class NetworkConstants:
         cls.WIF_PREFIX = 0x80
         cls.ADDRTYPE_P2PKH = 0
         cls.ADDRTYPE_P2SH = 5
+        # TODO check which one is correct
+        # cls.ADDRTYPE_P2SH = bytes.fromhex("1c")
         cls.SEGWIT_HRP = "bc"
-        cls.GENESIS = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+        cls.GENESIS = "0000000085370d5e122f64f4ab19c68614ff3df78c8d13cb814fd7e69a1dc6da"
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json('servers.json', {})
         cls.CHECKPOINTS = read_json('checkpoints.json', [])
+        # re-targeting done for each 20160 blocks
+        cls.CHUNK_SIZE = 20160
 
     @classmethod
     def set_testnet(cls):
@@ -90,10 +94,12 @@ class NetworkConstants:
         cls.ADDRTYPE_P2PKH = 111
         cls.ADDRTYPE_P2SH = 196
         cls.SEGWIT_HRP = "tb"
-        cls.GENESIS = "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"
+        cls.GENESIS = "0000000085370d5e122f64f4ab19c68614ff3df78c8d13cb814fd7e69a1dc6da"
         cls.DEFAULT_PORTS = {'t':'51001', 's':'51002'}
         cls.DEFAULT_SERVERS = read_json('servers_testnet.json', {})
         cls.CHECKPOINTS = read_json('checkpoints_testnet.json', [])
+        # TODO to be checked
+        cls.CHUNK_SIZE = 20160
 
 
 NetworkConstants.set_mainnet()

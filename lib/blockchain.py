@@ -157,16 +157,17 @@ class Blockchain(util.PrintError):
         bits = self.target_to_bits(target)
         if bits != header.get('bits'):
             raise BaseException("bits mismatch: %s vs %s" % (bits, header.get('bits')))
+        # FIXME proof of work for crown should be done taking into account AUXpow
         if int('0x' + _hash, 16) > target:
             raise BaseException("insufficient proof of work: %s vs target %s" % (int('0x' + _hash, 16), target))
 
     def verify_chunk(self, index, data):
         num = len(data) // 80
-        prev_hash = self.get_hash(index * 2016 - 1)
+        prev_hash = self.get_hash(index * bitcoin.NetworkConstants.CHUNK_SIZE - 1)
         target = self.get_target(index-1)
         for i in range(num):
             raw_header = data[i*80:(i+1) * 80]
-            header = deserialize_header(raw_header, index*2016 + i)
+            header = deserialize_header(raw_header, index*bitcoin.NetworkConstants.CHUNK_SIZE + i)
             self.verify_header(header, prev_hash, target)
             prev_hash = hash_header(header)
 
@@ -177,7 +178,7 @@ class Blockchain(util.PrintError):
 
     def save_chunk(self, index, chunk):
         filename = self.path()
-        d = (index * 2016 - self.checkpoint) * 80
+        d = (index * bitcoin.NetworkConstants.CHUNK_SIZE - self.checkpoint) * 80
         if d < 0:
             chunk = chunk[-d:]
             d = 0
@@ -262,9 +263,9 @@ class Blockchain(util.PrintError):
             return '0000000000000000000000000000000000000000000000000000000000000000'
         elif height == 0:
             return bitcoin.NetworkConstants.GENESIS
-        elif height < len(self.checkpoints) * 2016:
-            assert (height+1) % 2016 == 0, height
-            index = height // 2016
+        elif height < len(self.checkpoints) * bitcoin.NetworkConstants.CHUNK_SIZE:
+            assert (height+1) % bitcoin.NetworkConstants.CHUNK_SIZE == 0, height
+            index = height // bitcoin.NetworkConstants.CHUNK_SIZE
             h, t = self.checkpoints[index]
             return h
         else:
@@ -280,8 +281,8 @@ class Blockchain(util.PrintError):
             h, t = self.checkpoints[index]
             return t
         # new target
-        first = self.read_header(index * 2016)
-        last = self.read_header(index * 2016 + 2015)
+        first = self.read_header(index * bitcoin.NetworkConstants.CHUNK_SIZE)
+        last = self.read_header(index * bitcoin.NetworkConstants.CHUNK_SIZE + bitcoin.NetworkConstants.CHUNK_SIZE - 1)
         bits = last.get('bits')
         target = self.bits_to_target(bits)
         nActualTimespan = last.get('timestamp') - first.get('timestamp')
@@ -313,7 +314,7 @@ class Blockchain(util.PrintError):
     def can_connect(self, header, check_height=True):
         height = header['block_height']
         if check_height and self.height() != height - 1:
-            #self.print_error("cannot connect at height", height)
+            self.print_error("cannot connect at height", height)
             return False
         if height == 0:
             return hash_header(header) == bitcoin.NetworkConstants.GENESIS
@@ -323,10 +324,11 @@ class Blockchain(util.PrintError):
             return False
         if prev_hash != header.get('prev_block_hash'):
             return False
-        target = self.get_target(height // 2016 - 1)
+        target = self.get_target(height // bitcoin.NetworkConstants.CHUNK_SIZE - 1)
         try:
             self.verify_header(header, prev_hash, target)
         except BaseException as e:
+            self.print_error('verify_header failed', str(e))
             return False
         return True
 
@@ -334,7 +336,7 @@ class Blockchain(util.PrintError):
         try:
             data = bfh(hexdata)
             self.verify_chunk(idx, data)
-            #self.print_error("validated chunk %d" % idx)
+            self.print_error("validated chunk %d" % idx)
             self.save_chunk(idx, data)
             return True
         except BaseException as e:
@@ -344,9 +346,9 @@ class Blockchain(util.PrintError):
     def get_checkpoints(self):
         # for each chunk, store the hash of the last block and the target after the chunk
         cp = []
-        n = self.height() // 2016
+        n = self.height() // bitcoin.NetworkConstants.CHUNK_SIZE
         for index in range(n):
-            h = self.get_hash((index+1) * 2016 -1)
+            h = self.get_hash((index+1) * bitcoin.NetworkConstants.CHUNK_SIZE -1)
             target = self.get_target(index)
             cp.append((h, target))
         return cp
