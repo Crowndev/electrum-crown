@@ -164,7 +164,9 @@ class Blockchain(util.PrintError):
     def verify_chunk(self, index, data):
         num = len(data) // 80
         prev_hash = self.get_hash(index * bitcoin.NetworkConstants.CHUNK_SIZE - 1)
-        target = self.get_target(index//10-1)
+        # calculate previous target index
+        target_index = index * bitcoin.NetworkConstants.CHUNK_SIZE // bitcoin.NetworkConstants.RETARGET_SIZE - 1
+        target = self.get_target(target_index)
         for i in range(num):
             raw_header = data[i*80:(i+1) * 80]
             header = deserialize_header(raw_header, index*bitcoin.NetworkConstants.CHUNK_SIZE + i)
@@ -263,9 +265,9 @@ class Blockchain(util.PrintError):
             return '0000000000000000000000000000000000000000000000000000000000000000'
         elif height == 0:
             return bitcoin.NetworkConstants.GENESIS
-        elif height < len(self.checkpoints) * bitcoin.NetworkConstants.CHUNK_SIZE * 10:
-            assert (height+1) % (bitcoin.NetworkConstants.CHUNK_SIZE * 10) == 0, height
-            index = height // (bitcoin.NetworkConstants.CHUNK_SIZE * 10)
+        elif height < len(self.checkpoints) * bitcoin.NetworkConstants.RETARGET_SIZE:
+            assert (height+1) % bitcoin.NetworkConstants.RETARGET_SIZE == 0, height
+            index = height // bitcoin.NetworkConstants.RETARGET_SIZE
             h, t = self.checkpoints[index]
             return h
         else:
@@ -281,8 +283,8 @@ class Blockchain(util.PrintError):
             h, t = self.checkpoints[index]
             return t
         # new target
-        first = self.read_header(index * bitcoin.NetworkConstants.CHUNK_SIZE * 10)
-        last = self.read_header(index * bitcoin.NetworkConstants.CHUNK_SIZE * 10 + bitcoin.NetworkConstants.CHUNK_SIZE * 10 - 1)
+        first = self.read_header(index * bitcoin.NetworkConstants.RETARGET_SIZE)
+        last = self.read_header(index * bitcoin.NetworkConstants.RETARGET_SIZE + bitcoin.NetworkConstants.RETARGET_SIZE - 1)
         bits = last.get('bits')
         target = self.bits_to_target(bits)
         nActualTimespan = last.get('timestamp') - first.get('timestamp')
@@ -324,7 +326,7 @@ class Blockchain(util.PrintError):
             return False
         if prev_hash != header.get('prev_block_hash'):
             return False
-        target = self.get_target(height // (10 * bitcoin.NetworkConstants.CHUNK_SIZE) - 1)
+        target = self.get_target(height // bitcoin.NetworkConstants.RETARGET_SIZE - 1)
         try:
             self.verify_header(header, prev_hash, target)
         except BaseException as e:
