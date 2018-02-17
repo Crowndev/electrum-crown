@@ -953,7 +953,7 @@ class Network(util.DaemonThread):
     def init_headers_file(self):
         b = self.blockchains[0]
         filename = b.path()
-        length = 80 * len(bitcoin.NetworkConstants.CHECKPOINTS) * bitcoin.NetworkConstants.CHUNK_SIZE
+        length = 80 * len(bitcoin.NetworkConstants.CHECKPOINTS) * bitcoin.NetworkConstants.CHUNK_SIZE * 10
         if not os.path.exists(filename) or os.path.getsize(filename) < length:
             with open(filename, 'wb') as f:
                 if length>0:
@@ -1000,11 +1000,11 @@ class Network(util.DaemonThread):
             self.notify('interfaces')
             return
         tip = max([x.height() for x in self.blockchains.values()])
-        if tip >=0:
+        if tip >= 0:
             interface.mode = 'backward'
             interface.bad = height
             interface.bad_header = header
-            self.request_header(interface, min(tip +1, height - 1))
+            self.request_header(interface, min(tip + 1, height - 1))
         else:
             chain = self.blockchains[0]
             if chain.catch_up is None:

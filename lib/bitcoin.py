@@ -84,8 +84,10 @@ class NetworkConstants:
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json('servers.json', {})
         cls.CHECKPOINTS = read_json('checkpoints.json', [])
-        # re-targeting done for each 20160 blocks
-        cls.CHUNK_SIZE = 20160
+        # re-targeting done for each 20160 blocks, but we request to get from server 2016 length
+        # chunks to not get the 'message too large' response as the crown block header size is
+        # dynamic started with block number 453280(AuxPow blocks)
+        cls.CHUNK_SIZE = 2016
 
     @classmethod
     def set_testnet(cls):
@@ -99,7 +101,7 @@ class NetworkConstants:
         cls.DEFAULT_SERVERS = read_json('servers_testnet.json', {})
         cls.CHECKPOINTS = read_json('checkpoints_testnet.json', [])
         # TODO to be checked
-        cls.CHUNK_SIZE = 20160
+        cls.CHUNK_SIZE = 2016
 
 
 NetworkConstants.set_mainnet()
