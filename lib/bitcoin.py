@@ -89,6 +89,9 @@ class NetworkConstants:
         # dynamic started with block number 453280(AuxPow blocks)
         cls.CHUNK_SIZE = 504
         cls.RETARGET_SIZE = 20160
+        cls.PLAIN_HEADER_SIZE = 80
+        # server always sends headers in aux size
+        cls.AUX_HEADER_SIZE = 160
 
     @classmethod
     def set_testnet(cls):
@@ -104,6 +107,8 @@ class NetworkConstants:
         cls.CHUNK_SIZE = 504
         # TODO to be checked for testnet
         cls.RETARGET_SIZE = 20160
+        cls.PLAIN_HEADER_SIZE = 80
+        cls.AUX_HEADER_SIZE = 160
 
 
 NetworkConstants.set_mainnet()

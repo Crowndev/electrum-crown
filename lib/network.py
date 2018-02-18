@@ -35,7 +35,6 @@ import json
 
 import socks
 from . import util
-from . import bitcoin
 from .bitcoin import *
 from .interface import Connection, Interface
 from . import blockchain
@@ -59,7 +58,7 @@ def parse_servers(result):
             for v in item[2]:
                 if re.match("[st]\d*", v):
                     protocol, port = v[0], v[1:]
-                    if port == '': port = bitcoin.NetworkConstants.DEFAULT_PORTS[protocol]
+                    if port == '' : port = NetworkConstants.DEFAULT_PORTS[protocol]
                     out[protocol] = port
                 elif re.match("v(.?)+", v):
                     version = v[1:]
@@ -93,7 +92,7 @@ def filter_protocol(hostmap, protocol = 's'):
 
 def pick_random_server(hostmap = None, protocol = 's', exclude_set = set()):
     if hostmap is None:
-        hostmap = bitcoin.NetworkConstants.DEFAULT_SERVERS
+        hostmap = NetworkConstants.DEFAULT_SERVERS
     eligible = list(set(filter_protocol(hostmap, protocol)) - exclude_set)
     return random.choice(eligible) if eligible else None
 
@@ -322,7 +321,7 @@ class Network(util.DaemonThread):
 
     def request_fee_estimates(self):
         self.config.requested_fee_estimates()
-        for i in bitcoin.FEE_TARGETS:
+        for i in FEE_TARGETS:
             self.queue_request('blockchain.estimatefee', [i])
 
     def get_status_value(self, key):
@@ -359,7 +358,7 @@ class Network(util.DaemonThread):
         return list(self.interfaces.keys())
 
     def get_servers(self):
-        out = bitcoin.NetworkConstants.DEFAULT_SERVERS
+        out = NetworkConstants.DEFAULT_SERVERS
         if self.irc_servers:
             out.update(filter_version(self.irc_servers.copy()))
         else:
@@ -614,7 +613,7 @@ class Network(util.DaemonThread):
             self.process_response(interface, response, callbacks)
 
     def addr_to_scripthash(self, addr):
-        h = bitcoin.address_to_scripthash(addr)
+        h = address_to_scripthash(addr)
         if h not in self.h2addr:
             self.h2addr[h] = addr
         return h
@@ -911,7 +910,7 @@ class Network(util.DaemonThread):
         # If not finished, get the next header
         if next_height:
             if interface.mode == 'catch_up' and interface.tip > next_height + 50:
-                self.request_chunk(interface, next_height // bitcoin.NetworkConstants.CHUNK_SIZE)
+                self.request_chunk(interface, next_height // NetworkConstants.CHUNK_SIZE)
             else:
                 self.request_header(interface, next_height)
         else:
@@ -953,7 +952,7 @@ class Network(util.DaemonThread):
     def init_headers_file(self):
         b = self.blockchains[0]
         filename = b.path()
-        length = 80 * len(bitcoin.NetworkConstants.CHECKPOINTS) * bitcoin.NetworkConstants.RETARGET_SIZE
+        length = NetworkConstants.AUX_HEADER_SIZE * len(NetworkConstants.CHECKPOINTS) * NetworkConstants.RETARGET_SIZE
         if not os.path.exists(filename) or os.path.getsize(filename) < length:
             with open(filename, 'wb') as f:
                 if length>0:
@@ -1078,4 +1077,4 @@ class Network(util.DaemonThread):
             f.write(json.dumps(cp, indent=4))
 
     def max_checkpoint(self):
-        return max(0, len(bitcoin.NetworkConstants.CHECKPOINTS) * bitcoin.NetworkConstants.RETARGET_SIZE - 1)
+        return max(0, len(NetworkConstants.CHECKPOINTS) * NetworkConstants.RETARGET_SIZE - 1)

@@ -27,8 +27,10 @@ from . import util
 from .bitcoin import *
 
 MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
+VERISON_AUXPOW = (1 << 8)
 
-def serialize_header(res):
+
+def _serialize_plain_header(res):
     s = int_to_hex(res.get('version'), 4) \
         + rev_hex(res.get('prev_block_hash')) \
         + rev_hex(res.get('merkle_root')) \
@@ -37,7 +39,20 @@ def serialize_header(res):
         + int_to_hex(int(res.get('nonce')), 4)
     return s
 
-def deserialize_header(s, height):
+
+def serialize_header(res, auxpow=False):
+    s = _serialize_plain_header(res)
+    if auxpow:
+        assert res.get('parent_block')
+        # for non-auxpow block versions server always sends dummy parent_block with all zeros
+        if res.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
+            s += res.get('parent_block')
+        else:
+            s += _serialize_plain_header(res.get('parent_block'))
+    return s
+
+
+def _deserialize_plain_header(s):
     hex_to_int = lambda s: int('0x' + bh2u(s[::-1]), 16)
     h = {}
     h['version'] = hex_to_int(s[0:4])
@@ -46,8 +61,18 @@ def deserialize_header(s, height):
     h['timestamp'] = hex_to_int(s[68:72])
     h['bits'] = hex_to_int(s[72:76])
     h['nonce'] = hex_to_int(s[76:80])
-    h['block_height'] = height
     return h
+
+
+def deserialize_header(s, height):
+    assert len(s) == NetworkConstants.AUX_HEADER_SIZE
+    h = _deserialize_plain_header(s[:NetworkConstants.PLAIN_HEADER_SIZE])
+    h['block_height'] = height
+    # FIXME we don't recover dummy objects for now
+    if h['version'] & VERISON_AUXPOW:
+        h['parent_block'] = _deserialize_plain_header(s[-NetworkConstants.PLAIN_HEADER_SIZE:])
+    return h
+
 
 def hash_header(header):
     if header is None:
@@ -145,10 +170,9 @@ class Blockchain(util.PrintError):
 
     def update_size(self):
         p = self.path()
-        self._size = os.path.getsize(p)//80 if os.path.exists(p) else 0
+        self._size = os.path.getsize(p)//NetworkConstants.AUX_HEADER_SIZE if os.path.exists(p) else 0
 
     def verify_header(self, header, prev_hash, target):
-        _hash = hash_header(header)
         if prev_hash != header.get('prev_block_hash'):
             raise BaseException("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if NetworkConstants.TESTNET:
@@ -156,18 +180,22 @@ class Blockchain(util.PrintError):
         bits = self.target_to_bits(target)
         if bits != header.get('bits'):
             raise BaseException("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        # FIXME proof of work for crown should be done taking into account AUXpow
+        if header.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
+            self.print_error('dummy parent_block at height: %s' % header.get('block_height'))
+            _hash = hash_header(header)
+        else:
+            _hash = hash_header(header.get('parent_block'))
         if int('0x' + _hash, 16) > target:
             raise BaseException("insufficient proof of work: %s vs target %s" % (int('0x' + _hash, 16), target))
 
     def verify_chunk(self, index, data):
-        num = len(data) // 80
+        num = len(data) // NetworkConstants.AUX_HEADER_SIZE
         prev_hash = self.get_hash(index * NetworkConstants.CHUNK_SIZE - 1)
         # calculate previous target index
         target_index = index * NetworkConstants.CHUNK_SIZE // NetworkConstants.RETARGET_SIZE - 1
         target = self.get_target(target_index)
         for i in range(num):
-            raw_header = data[i*80:(i+1) * 80]
+            raw_header = data[i*NetworkConstants.AUX_HEADER_SIZE:(i+1) * NetworkConstants.AUX_HEADER_SIZE]
             header = deserialize_header(raw_header, index*NetworkConstants.CHUNK_SIZE + i)
             self.verify_header(header, prev_hash, target)
             prev_hash = hash_header(header)
@@ -179,7 +207,7 @@ class Blockchain(util.PrintError):
 
     def save_chunk(self, index, chunk):
         filename = self.path()
-        d = (index * NetworkConstants.CHUNK_SIZE - self.checkpoint) * 80
+        d = (index * NetworkConstants.CHUNK_SIZE - self.checkpoint) * NetworkConstants.AUX_HEADER_SIZE
         if d < 0:
             chunk = chunk[-d:]
             d = 0
@@ -199,10 +227,10 @@ class Blockchain(util.PrintError):
         with open(self.path(), 'rb') as f:
             my_data = f.read()
         with open(parent.path(), 'rb') as f:
-            f.seek((checkpoint - parent.checkpoint)*80)
-            parent_data = f.read(parent_branch_size*80)
+            f.seek((checkpoint - parent.checkpoint)*NetworkConstants.AUX_HEADER_SIZE)
+            parent_data = f.read(parent_branch_size*NetworkConstants.AUX_HEADER_SIZE)
         self.write(parent_data, 0)
-        parent.write(my_data, (checkpoint - parent.checkpoint)*80)
+        parent.write(my_data, (checkpoint - parent.checkpoint)*NetworkConstants.AUX_HEADER_SIZE)
         # store file path
         for b in blockchains.values():
             b.old_path = b.path()
@@ -224,7 +252,7 @@ class Blockchain(util.PrintError):
         filename = self.path()
         with self.lock:
             with open(filename, 'rb+') as f:
-                if truncate and offset != self._size*80:
+                if truncate and offset != self._size*NetworkConstants.AUX_HEADER_SIZE:
                     f.seek(offset)
                     f.truncate()
                 f.seek(offset)
@@ -235,10 +263,10 @@ class Blockchain(util.PrintError):
 
     def save_header(self, header):
         delta = header.get('block_height') - self.checkpoint
-        data = bfh(serialize_header(header))
+        data = bfh(serialize_header(header, auxpow=True))
         assert delta == self.size()
-        assert len(data) == 80
-        self.write(data, delta*80)
+        assert len(data) == NetworkConstants.AUX_HEADER_SIZE
+        self.write(data, delta*NetworkConstants.AUX_HEADER_SIZE)
         self.swap_with_parent()
 
     def read_header(self, height):
@@ -253,9 +281,9 @@ class Blockchain(util.PrintError):
         name = self.path()
         if os.path.exists(name):
             with open(name, 'rb') as f:
-                f.seek(delta * 80)
-                h = f.read(80)
-        if h == bytes([0])*80:
+                f.seek(delta * NetworkConstants.AUX_HEADER_SIZE)
+                h = f.read(NetworkConstants.AUX_HEADER_SIZE)
+        if h == bytes([0])*NetworkConstants.AUX_HEADER_SIZE:
             return None
         return deserialize_header(h, height)
 
