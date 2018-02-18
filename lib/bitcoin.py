@@ -87,7 +87,7 @@ class NetworkConstants:
         # re-targeting done for each 20160 blocks, but we request to get from server 2016 length
         # chunks to not get the 'message too large' response as the crown block header size is
         # dynamic started with block number 453280(AuxPow blocks)
-        cls.CHUNK_SIZE = 504
+        cls.CHUNK_SIZE = 1008
         cls.RETARGET_SIZE = 20160
         cls.PLAIN_HEADER_SIZE = 80
         # server always sends headers in aux size
@@ -104,7 +104,7 @@ class NetworkConstants:
         cls.DEFAULT_PORTS = {'t':'51001', 's':'51002'}
         cls.DEFAULT_SERVERS = read_json('servers_testnet.json', {})
         cls.CHECKPOINTS = read_json('checkpoints_testnet.json', [])
-        cls.CHUNK_SIZE = 504
+        cls.CHUNK_SIZE = 1008
         # TODO to be checked for testnet
         cls.RETARGET_SIZE = 20160
         cls.PLAIN_HEADER_SIZE = 80
