@@ -92,6 +92,8 @@ class NetworkConstants:
         cls.PLAIN_HEADER_SIZE = 80
         # server always sends headers in aux size
         cls.AUX_HEADER_SIZE = 160
+        # started from that index difficulty calculation is changed to Dark Gravity Wave v3
+        cls.DGW_FIRST_BLOCK = 1059780
 
     @classmethod
     def set_testnet(cls):
@@ -109,6 +111,8 @@ class NetworkConstants:
         cls.RETARGET_SIZE = 20160
         cls.PLAIN_HEADER_SIZE = 80
         cls.AUX_HEADER_SIZE = 160
+        # started from that index difficulty calculation is changed to Dark Gravity Wave v3
+        cls.DGW_FIRST_BLOCK = 1059780
 
 
 NetworkConstants.set_mainnet()

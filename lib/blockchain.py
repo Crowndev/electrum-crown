@@ -172,16 +172,17 @@ class Blockchain(util.PrintError):
         p = self.path()
         self._size = os.path.getsize(p)//NetworkConstants.AUX_HEADER_SIZE if os.path.exists(p) else 0
 
-    def verify_header(self, header, prev_hash, target):
+    def verify_header(self, header, prev_hash):
         if prev_hash != header.get('prev_block_hash'):
             raise BaseException("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if NetworkConstants.TESTNET:
             return
+        target = self.calculate_target(header['block_height'])
         bits = self.target_to_bits(target)
         if bits != header.get('bits'):
             raise BaseException("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        if header.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
-            self.print_error('dummy parent_block at height: %s' % header.get('block_height'))
+        if not header.get('parent_block') or header.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
+            self.print_error('Non auxpow version block at height %s' % header.get('block_height'))
             _hash = hash_header(header)
         else:
             _hash = hash_header(header.get('parent_block'))
@@ -191,13 +192,10 @@ class Blockchain(util.PrintError):
     def verify_chunk(self, index, data):
         num = len(data) // NetworkConstants.AUX_HEADER_SIZE
         prev_hash = self.get_hash(index * NetworkConstants.CHUNK_SIZE - 1)
-        # calculate previous target index
-        target_index = index * NetworkConstants.CHUNK_SIZE // NetworkConstants.RETARGET_SIZE - 1
-        target = self.get_target(target_index)
         for i in range(num):
             raw_header = data[i*NetworkConstants.AUX_HEADER_SIZE:(i+1) * NetworkConstants.AUX_HEADER_SIZE]
             header = deserialize_header(raw_header, index*NetworkConstants.CHUNK_SIZE + i)
-            self.verify_header(header, prev_hash, target)
+            self.verify_header(header, prev_hash)
             prev_hash = hash_header(header)
 
     def path(self):
@@ -300,16 +298,40 @@ class Blockchain(util.PrintError):
         else:
             return hash_header(self.read_header(height))
 
-    def get_target(self, index):
-        # compute target from chunk x, used in chunk x+1
+    def calculate_target(self, height):
+        """
+        Method calculates target based on header height as
+        crown used different difficulty formulas during evolution.
+        """
         if NetworkConstants.TESTNET:
             return 0
+
+        # new target
+        if height >= NetworkConstants.DGW_FIRST_BLOCK:
+            return self.calculate_dgw_target(height)
+        else:
+            return self.calculate_btc_style_target(height)
+
+    def calculate_dgw_target(self, height):
+        """
+        Method calculates new target using new difficulty formula: Dark Gravity Wave 3
+        """
+
+        # TODO implement
+        return MAX_TARGET
+
+    def calculate_btc_style_target(self, height):
+        """
+        Method calculates new target using default Bitcoin style re-targeting
+        """
+        index = height // NetworkConstants.RETARGET_SIZE - 1
         if index == -1:
             return MAX_TARGET
+
         if index < len(self.checkpoints):
             h, t = self.checkpoints[index]
             return t
-        # new target
+
         first = self.read_header(index * NetworkConstants.RETARGET_SIZE)
         last = self.read_header(index * NetworkConstants.RETARGET_SIZE + NetworkConstants.RETARGET_SIZE - 1)
         bits = last.get('bits')
@@ -353,9 +375,8 @@ class Blockchain(util.PrintError):
             return False
         if prev_hash != header.get('prev_block_hash'):
             return False
-        target = self.get_target(height // NetworkConstants.RETARGET_SIZE - 1)
         try:
-            self.verify_header(header, prev_hash, target)
+            self.verify_header(header, prev_hash)
         except BaseException as e:
             self.print_error('verify_header failed', str(e))
             return False
@@ -375,9 +396,9 @@ class Blockchain(util.PrintError):
     def get_checkpoints(self):
         # for each chunk, store the hash of the last block and the target after the chunk
         cp = []
-        n = self.height() // NetworkConstants.CHUNK_SIZE
+        n = self.height() // NetworkConstants.RETARGET_SIZE
         for index in range(n):
-            h = self.get_hash((index+1) * NetworkConstants.CHUNK_SIZE -1)
-            target = self.get_target(index)
-            cp.append((h, target))
+            hash = self.get_hash((index + 1) * NetworkConstants.RETARGET_SIZE - 1)
+            target = self.calculate_target((index + 1) * NetworkConstants.RETARGET_SIZE)
+            cp.append((hash, target))
         return cp
