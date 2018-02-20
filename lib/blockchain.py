@@ -43,10 +43,9 @@ def _serialize_plain_header(res):
 def serialize_header(res, auxpow=False):
     s = _serialize_plain_header(res)
     if auxpow:
-        assert res.get('parent_block')
-        # for non-auxpow block versions server always sends dummy parent_block with all zeros
-        if res.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
-            s += res.get('parent_block')
+        # even for non auxpow block serialized header size should be AUX_HEADER_SIZE
+        if not res.get('parent_block') or res.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
+            s += '0'*NetworkConstants.AUX_HEADER_SIZE
         else:
             s += _serialize_plain_header(res.get('parent_block'))
     return s
@@ -181,8 +180,9 @@ class Blockchain(util.PrintError):
         bits = self.target_to_bits(target)
         if bits != header.get('bits'):
             raise BaseException("bits mismatch: %s vs %s" % (bits, header.get('bits')))
+        # for auxpow blocks proof of work verification done based on parent_block hash value
         if not header.get('parent_block') or header.get('parent_block') == '0'*NetworkConstants.AUX_HEADER_SIZE:
-            self.print_error('Non auxpow version block at height %s' % header.get('block_height'))
+            # Non auxpow version block
             _hash = hash_header(header)
         else:
             _hash = hash_header(header.get('parent_block'))
@@ -196,6 +196,7 @@ class Blockchain(util.PrintError):
             raw_header = data[i*NetworkConstants.AUX_HEADER_SIZE:(i+1) * NetworkConstants.AUX_HEADER_SIZE]
             header = deserialize_header(raw_header, index*NetworkConstants.CHUNK_SIZE + i)
             self.verify_header(header, prev_hash)
+            self.save_header(header)
             prev_hash = hash_header(header)
 
     def path(self):
@@ -262,7 +263,8 @@ class Blockchain(util.PrintError):
     def save_header(self, header):
         delta = header.get('block_height') - self.checkpoint
         data = bfh(serialize_header(header, auxpow=True))
-        assert delta == self.size()
+        # FIXME remove after tests!! assert isn't needed as the chunk is saved header by header
+        # assert delta == self.size()
         assert len(data) == NetworkConstants.AUX_HEADER_SIZE
         self.write(data, delta*NetworkConstants.AUX_HEADER_SIZE)
         self.swap_with_parent()
@@ -314,11 +316,39 @@ class Blockchain(util.PrintError):
 
     def calculate_dgw_target(self, height):
         """
-        Method calculates new target using new difficulty formula: Dark Gravity Wave 3
+        Method calculates new target using new difficulty formula: Dark Gravity Wave v3:
+        see https://github.com/Crowndev/crowncoin/blob/master/src/pow.cpp
         """
+        # get last solved header
+        current = self.read_header(height - 1)
+        actual_timespan = 0
+        last_block_time = 0
+        past_blocks_min = past_blocks_max = 24
+        blocks_count = 0
 
-        # TODO implement
-        return MAX_TARGET
+        for i in range(past_blocks_max):
+            blocks_count += 1
+            bits = current.get('bits')
+            if blocks_count <= past_blocks_min:
+                if blocks_count == 1:
+                    past_difficulty_avg = self.bits_to_target(bits)
+                else:
+                    past_difficulty_avg = (past_difficulty_avg_prev * blocks_count + self.bits_to_target(bits)) // (blocks_count + 1)
+                past_difficulty_avg_prev = past_difficulty_avg
+
+            if last_block_time > 0:
+                actual_timespan += last_block_time - current.get('timestamp')
+            last_block_time = current.get('timestamp')
+
+            # get previous block
+            current = self.read_header(height - i - 2)
+
+        target_timespan = blocks_count * NetworkConstants.TARGET_SPACING
+        actual_timespan = max(actual_timespan, target_timespan // 3)
+        actual_timespan = min(actual_timespan, target_timespan * 3)
+        new_target = min(MAX_TARGET, (past_difficulty_avg * actual_timespan) // target_timespan)
+
+        return new_target
 
     def calculate_btc_style_target(self, height):
         """
@@ -387,7 +417,6 @@ class Blockchain(util.PrintError):
             data = bfh(hexdata)
             self.verify_chunk(idx, data)
             self.print_error("validated chunk %d" % idx)
-            self.save_chunk(idx, data)
             return True
         except BaseException as e:
             self.print_error('verify_chunk failed', str(e))

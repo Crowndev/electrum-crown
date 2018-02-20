@@ -84,11 +84,12 @@ class NetworkConstants:
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json('servers.json', {})
         cls.CHECKPOINTS = read_json('checkpoints.json', [])
-        # re-targeting done for each 20160 blocks, but we request to get from server 2016 length
+        # re-targeting done for each 20160 blocks, but we request to get from server 1008 length
         # chunks to not get the 'message too large' response as the crown block header size is
         # dynamic started with block number 453280(AuxPow blocks)
         cls.CHUNK_SIZE = 1008
         cls.RETARGET_SIZE = 20160
+        cls.TARGET_SPACING = 60 # 1 minute
         cls.PLAIN_HEADER_SIZE = 80
         # server always sends headers in aux size
         cls.AUX_HEADER_SIZE = 160
@@ -113,6 +114,7 @@ class NetworkConstants:
         cls.AUX_HEADER_SIZE = 160
         # started from that index difficulty calculation is changed to Dark Gravity Wave v3
         cls.DGW_FIRST_BLOCK = 1059780
+        cls.TARGET_SPACING = 90 # 1.5 minute
 
 
 NetworkConstants.set_mainnet()
