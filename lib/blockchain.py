@@ -176,6 +176,14 @@ class Blockchain(util.PrintError):
             raise BaseException("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if NetworkConstants.TESTNET:
             return
+
+        # for the range (last_checkpoint, last_checkpoint + 24] the headers proof of work validation skipped
+        # as for dgw calculation last 24 blocks should be exist in db
+        skipped_range = header['block_height'] - len(self.checkpoints) * NetworkConstants.RETARGET_SIZE
+        if skipped_range != 0 and skipped_range < 25 and header['block_height'] >= NetworkConstants.DGW_FIRST_BLOCK:
+            self.print_error('proof of work validation skipped for the header at height: %d' % header['block_height'])
+            return
+
         target = self.calculate_target(header['block_height'])
         bits = self.target_to_bits(target)
         if bits != header.get('bits'):
@@ -319,6 +327,12 @@ class Blockchain(util.PrintError):
         Method calculates new target using new difficulty formula: Dark Gravity Wave v3:
         see https://github.com/Crowndev/crowncoin/blob/master/src/pow.cpp
         """
+        # use checkpoints value only for first header in case of dgw
+        if not height % NetworkConstants.RETARGET_SIZE:
+            index = height // NetworkConstants.RETARGET_SIZE - 1
+            if index < len(self.checkpoints):
+                h, t = self.checkpoints[index]
+                return t
         # get last solved header
         current = self.read_header(height - 1)
         actual_timespan = 0
@@ -328,6 +342,8 @@ class Blockchain(util.PrintError):
 
         for i in range(past_blocks_max):
             blocks_count += 1
+            if not current:
+                raise BaseException('header at height: %d is not stored in db' % (height - i - 1))
             bits = current.get('bits')
             if blocks_count <= past_blocks_min:
                 if blocks_count == 1:
