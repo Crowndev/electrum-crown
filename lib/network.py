@@ -684,6 +684,7 @@ class Network(util.DaemonThread):
     def connection_down(self, server):
         '''A connection to server either went down, or was never made.
         We distinguish by whether it is in self.interfaces.'''
+        self.print_error('close connection with %s' % server)
         self.disconnected_servers.add(server)
         if server == self.default_server:
             self.set_status('disconnected')
@@ -922,7 +923,7 @@ class Network(util.DaemonThread):
 
     def maintain_requests(self):
         for interface in list(self.interfaces.values()):
-            if interface.request and time.time() - interface.request_time > 20:
+            if interface.request and time.time() - interface.request_time > 50:
                 interface.print_error("blockchain request timed out")
                 self.connection_down(interface.server)
                 continue
