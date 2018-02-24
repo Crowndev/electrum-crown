@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QLineEdit, QStyle, QStyleOptionFrame)
 
 from decimal import Decimal
 from electrum.util import format_satoshis_plain
+from electrum.bitcoin import NetworkConstants
 
 
 class MyLineEdit(QLineEdit):
@@ -81,12 +82,21 @@ class BTCAmountEdit(AmountEdit):
 
     def _base_unit(self):
         p = self.decimal_point()
-        if p == 8:
-            return 'CRW'
-        if p == 5:
-            return 'mCRW'
         if p == 2:
-            return 'µCRW'
+            if NetworkConstants.TESTNET:
+                return 'µtCRW'
+            else:
+                return 'µCRW'
+        if p == 5:
+            if NetworkConstants.TESTNET:
+                return 'mtCRW'
+            else:
+                return 'mCRW'
+        if p == 8:
+            if NetworkConstants.TESTNET:
+                return 'tCRW'
+            else:
+                return 'CRW'
         raise Exception('Unknown base unit')
 
     def get_amount(self):
@@ -108,9 +118,15 @@ class FeerateEdit(BTCAmountEdit):
     def _base_unit(self):
         p = self.decimal_point()
         if p == 2:
-            return 'mCRW/kB'
+            if NetworkConstants.TESTNET:
+                return 'mtCRW/kB'
+            else:
+                return 'mCRW/kB'
         if p == 0:
-            return 'µCRW/byte'
+            if NetworkConstants.TESTNET:
+                return 'µtCRW/byte'
+            else:
+                return 'µCRW/byte'
         raise Exception('Unknown base unit')
 
     def get_amount(self):

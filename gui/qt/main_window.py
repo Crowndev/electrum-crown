@@ -647,11 +647,20 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
     def base_unit(self):
         assert self.decimal_point in [2, 5, 8]
         if self.decimal_point == 2:
-            return 'µCRW'
+            if NetworkConstants.TESTNET:
+                return 'µtCRW'
+            else:
+                return 'µCRW'
         if self.decimal_point == 5:
-            return 'mCRW'
+            if NetworkConstants.TESTNET:
+                return 'mtCRW'
+            else:
+                return 'mCRW'
         if self.decimal_point == 8:
-            return 'CRW'
+            if NetworkConstants.TESTNET:
+                return 'tCRW'
+            else:
+                return 'CRW'
         raise Exception('Unknown base unit')
 
     def connect_fields(self, window, btc_e, fiat_e, fee_e):
@@ -2702,7 +2711,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.fee_unit = self.config.get('fee_unit', 0)
         fee_unit_label = HelpLabel(_('Fee Unit') + ':', '')
         fee_unit_combo = QComboBox()
-        fee_unit_combo.addItems([_('µCRW/byte'), _('mCRW/kB')])
+        if NetworkConstants.TESTNET:
+            fee_unit_combo.addItems([_('µtCRW/byte'), _('mtCRW/kB')])
+        else:
+            fee_unit_combo.addItems([_('µCRW/byte'), _('mCRW/kB')])
         fee_unit_combo.setCurrentIndex(self.fee_unit)
         def on_fee_unit(x):
             self.fee_unit = x
@@ -2761,7 +2773,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         SSL_id_e.setReadOnly(True)
         id_widgets.append((SSL_id_label, SSL_id_e))
 
-        units = ['CRW', 'mCRW', 'µCRW']
+        if NetworkConstants.TESTNET:
+            units = ['tCRW', 'mtCRW', 'µtCRW']
+        else:
+            units = ['CRW', 'mCRW', 'µCRW']
         msg = _('Base unit of your wallet.')\
               + '\n1CRW=1000mCRW.\n' \
               + _(' These settings affects the fields in the Send tab')+' '
@@ -2775,11 +2790,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 return
             edits = self.amount_e, self.fee_e, self.receive_amount_e
             amounts = [edit.get_amount() for edit in edits]
-            if unit_result == 'CRW':
+            if unit_result == 'CRW' or unit_result == 'tCRW':
                 self.decimal_point = 8
-            elif unit_result == 'mCRW':
+            elif unit_result == 'mCRW' or unit_result == 'mtCRW':
                 self.decimal_point = 5
-            elif unit_result == 'µCRW':
+            elif unit_result == 'µCRW' or unit_result == 'µtCRW':
                 self.decimal_point = 2
             else:
                 raise Exception('Unknown base unit')
