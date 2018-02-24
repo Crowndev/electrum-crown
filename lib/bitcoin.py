@@ -107,13 +107,13 @@ class NetworkConstants:
         cls.DEFAULT_PORTS = {'t':'51001', 's':'51002'}
         cls.DEFAULT_SERVERS = read_json('servers_testnet.json', {})
         cls.CHECKPOINTS = read_json('checkpoints_testnet.json', [])
-        cls.CHUNK_SIZE = 1008
-        # TODO to be checked for testnet
-        cls.RETARGET_SIZE = 20160
+        cls.CHUNK_SIZE = 960
+        cls.RETARGET_SIZE = 1920
         cls.PLAIN_HEADER_SIZE = 80
         cls.AUX_HEADER_SIZE = 160
-        # started from that index difficulty calculation is changed to Dark Gravity Wave v3
-        cls.DGW_FIRST_BLOCK = 1059780
+        # started from that index difficulty calculation is changed to Dark Gravity Wave v3,
+        # but the target calculation is not used in testnet currently
+        cls.DGW_FIRST_BLOCK = 14003
         cls.TARGET_SPACING = 90 # 1.5 minute
 
 

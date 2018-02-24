@@ -173,7 +173,8 @@ class Blockchain(util.PrintError):
 
     def verify_header(self, header, prev_hash):
         if prev_hash != header.get('prev_block_hash'):
-            raise BaseException("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
+            raise BaseException("at height %s prev hash mismatch: %s vs %s" % (header.get('block_height'),
+                                                                               prev_hash, header.get('prev_block_hash')))
         if NetworkConstants.TESTNET:
             return
 
