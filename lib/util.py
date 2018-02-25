@@ -436,11 +436,9 @@ mainnet_block_explorers = {
     'crw2.crown.tech': ('https://crw2-bitcore.crown.tech/',
                         {'tx': 'tx/', 'addr': 'address/'}),
     'cryptoid.info': ('https://chainz.cryptoid.info/crw/',
-                      {'tx': 'transactions/', 'addr': 'addresses/'}),
+                      {'tx': 'tx.dws?', 'addr': 'address.dws?'}),
     'crownlab.eu': ('http://ex.crownlab.eu/',
-                        {'tx': 'tx', 'addr': 'address/'}),
-    'system default': ('blockchain:/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
+                    {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 testnet_block_explorers = {
