@@ -165,8 +165,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         if self.config.get("is_maximized"):
             self.showMaximized()
-
-        self.setWindowIcon(QIcon(":icons/electrum-crown.png"))
+        if NetworkConstants.TESTNET:
+            self.setWindowIcon(QIcon(":icons/electrum-crown-testnet.png"))
+        else:
+            self.setWindowIcon(QIcon(":icons/electrum-crown.png"))
         self.init_menubar()
 
         wrtabs = weakref.proxy(tabs)
@@ -545,7 +547,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.show_error(_('No donation address for this server'))
 
     def show_about(self):
-        QMessageBox.about(self, "Electrum Crown",
+        QMessageBox.about(self, "Electrum Crown Testnet" if NetworkConstants.TESTNET else "Electrum Crown",
             _("Version")+" %s" % (self.wallet.electrum_version) + "\n\n" +
                 _("Electrum Crown's focus is speed, with low resource usage and simplifying Crown. You do not need to perform regular backups, because your wallet can be recovered from a secret phrase that you can memorize or write on paper. Startup times are instant because it operates in conjunction with high-performance servers that handle the most complicated parts of the Crown system."  + "\n\n" +
                 _("Uses icons from the Icons8 icon pack (icons8.com).")))

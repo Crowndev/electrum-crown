@@ -12,6 +12,7 @@ from electrum import Wallet, WalletStorage
 from electrum.util import UserCancelled, InvalidPassword
 from electrum.base_wizard import BaseWizard, HWD_SETUP_DECRYPT_WALLET
 from electrum.i18n import _
+from electrum.bitcoin import NetworkConstants
 
 from .seed_dialog import SeedLayout, KeysLayout
 from .network_dialog import NetworkChoiceLayout
@@ -106,7 +107,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
     def __init__(self, config, app, plugins, storage):
         BaseWizard.__init__(self, config, storage)
         QDialog.__init__(self, None)
-        self.setWindowTitle('Electrum Crown  -  ' + _('Install Wizard'))
+        title = 'Testnet' if NetworkConstants.TESTNET else ''
+        self.setWindowTitle('Electrum Crown %s  -  ' % title + _('Install Wizard'))
         self.app = app
         self.config = config
         # Set for base base class
@@ -151,7 +153,10 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         hbox.setStretchFactor(scroll, 1)
         outer_vbox.addLayout(hbox)
         outer_vbox.addLayout(Buttons(self.back_button, self.next_button))
-        self.set_icon(':icons/electrum-crown.png')
+        if NetworkConstants.TESTNET:
+            self.set_icon(':icons/electrum-crown-testnet.png')
+        else:
+            self.set_icon(':icons/electrum-crown.png')
         self.show()
         self.raise_()
         self.refresh_gui()  # Need for QT on MacOSX.  Lame.
