@@ -45,10 +45,24 @@ class ExchangeBase(PrintError):
     def name(self):
         return self.__class__.__name__
 
+    def get_bittrex_btc_crw_rate(self):
+        json = self.get_json('bittrex.com/api/v1.1/public/getticker', '?market=btc-crw')
+        return Decimal(json['result']['Last'])
+
+    def convert_to_crw_rates(self):
+        """
+        Converts already calculated rates for btc to crw using bittrex provided btc-crw rate.
+        """
+        self.print_error("converting btc quotes to crw")
+        rate = self.get_bittrex_btc_crw_rate()
+        self.quotes.update((key, value * rate) for key, value in self.quotes.items())
+
     def update_safe(self, ccy):
         try:
             self.print_error("getting fx quotes for", ccy)
             self.quotes = self.get_rates(ccy)
+            # FIXME workaround to get btc-crw rate from bittrex and then recalculate
+            self.convert_to_crw_rates()
             self.print_error("received fx quotes")
         except BaseException as e:
             self.print_error("failed fx quotes:", e)
