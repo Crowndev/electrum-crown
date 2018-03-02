@@ -29,7 +29,7 @@ datas = [
     (electrum+'lib/checkpoints_testnet.json', 'electrum'),
     (electrum+'lib/wordlist/english.txt', 'electrum/wordlist'),
     (electrum+'lib/locale', 'electrum/locale'),
-    (electrum+'plugins', 'electrum_plugins'),
+    (electrum+'plugins', 'electrumcrown_plugins'),
 ]
 datas += collect_data_files('trezorlib')
 datas += collect_data_files('btchip')

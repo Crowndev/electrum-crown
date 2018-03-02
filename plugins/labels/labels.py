@@ -7,9 +7,9 @@ import traceback
 
 import base64
 
-import electrum
-from electrum.plugins import BasePlugin, hook
-from electrum.i18n import _
+import electrumcrown
+from electrumcrown.plugins import BasePlugin, hook
+from electrumcrown.i18n import _
 
 
 class LabelsPlugin(BasePlugin):

@@ -4,15 +4,15 @@
 #
 
 try:
-    import electrum
-    from electrum.bitcoin import TYPE_ADDRESS, push_script, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
-    from electrum.bitcoin import serialize_xpub, deserialize_xpub
-    from electrum.transaction import Transaction
-    from electrum.i18n import _
-    from electrum.keystore import Hardware_KeyStore
+    import electrumcrown
+    from electrumcrown.bitcoin import TYPE_ADDRESS, push_script, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
+    from electrumcrown.bitcoin import serialize_xpub, deserialize_xpub
+    from electrumcrown.transaction import Transaction
+    from electrumcrown.i18n import _
+    from electrumcrown.keystore import Hardware_KeyStore
     from ..hw_wallet import HW_PluginBase
-    from electrum.util import print_error, to_string, UserCancelled
-    from electrum.base_wizard import ScriptTypeNotSupported, HWD_SETUP_NEW_WALLET
+    from electrumcrown.util import print_error, to_string, UserCancelled
+    from electrumcrown.base_wizard import ScriptTypeNotSupported, HWD_SETUP_NEW_WALLET
 
     import time
     import hid

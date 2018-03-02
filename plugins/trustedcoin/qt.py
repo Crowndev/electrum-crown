@@ -31,12 +31,12 @@ from decimal import Decimal
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from electrum_gui.qt.util import *
-from electrum_gui.qt.qrcodewidget import QRCodeWidget
-from electrum_gui.qt.amountedit import AmountEdit
-from electrum_gui.qt.main_window import StatusBarButton
-from electrum.i18n import _
-from electrum.plugins import hook
+from electrumcrown_gui.qt.util import *
+from electrumcrown_gui.qt.qrcodewidget import QRCodeWidget
+from electrumcrown_gui.qt.amountedit import AmountEdit
+from electrumcrown_gui.qt.main_window import StatusBarButton
+from electrumcrown.i18n import _
+from electrumcrown.plugins import hook
 from .trustedcoin import TrustedCoinPlugin, server
 
 

@@ -3,10 +3,10 @@ import curses, datetime, locale
 from decimal import Decimal
 import getpass
 
-import electrum
-from electrum.util import format_satoshis, set_verbosity
-from electrum.bitcoin import is_address, COIN, TYPE_ADDRESS
-from electrum import Wallet, WalletStorage
+import electrumcrown
+from electrumcrown.util import format_satoshis, set_verbosity
+from electrumcrown.bitcoin import is_address, COIN, TYPE_ADDRESS
+from electrumcrown import Wallet, WalletStorage
 
 _ = lambda x:x
 

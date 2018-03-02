@@ -32,9 +32,9 @@ import PyQt5.QtCore as QtCore
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import *
 
-from electrum.i18n import _
+from electrumcrown.i18n import _
 import sys
-from electrum import ELECTRUM_VERSION
+from electrumcrown import ELECTRUM_VERSION
 
 issue_template = """<h2>Traceback</h2>
 <pre>

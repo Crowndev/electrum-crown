@@ -5,8 +5,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import (QLineEdit, QStyle, QStyleOptionFrame)
 
 from decimal import Decimal
-from electrum.util import format_satoshis_plain
-from electrum.bitcoin import NetworkConstants
+from electrumcrown.util import format_satoshis_plain
+from electrumcrown.bitcoin import NetworkConstants
 
 
 class MyLineEdit(QLineEdit):

@@ -25,11 +25,11 @@
 
 import webbrowser
 
-from electrum.wallet import UnrelatedTransactionException, TX_HEIGHT_LOCAL
+from electrumcrown.wallet import UnrelatedTransactionException, TX_HEIGHT_LOCAL
 from .util import *
-from electrum.i18n import _
-from electrum.util import block_explorer_URL
-from electrum.util import timestamp_to_datetime, profiler
+from electrumcrown.i18n import _
+from electrumcrown.util import block_explorer_URL
+from electrumcrown.util import timestamp_to_datetime, profiler
 
 
 # note: this list needs to be kept in sync with another in kivy

@@ -30,17 +30,17 @@ import json
 from urllib.parse import urljoin
 from urllib.parse import quote
 
-import electrum
-from electrum import bitcoin
-from electrum import keystore
-from electrum.bitcoin import *
-from electrum.mnemonic import Mnemonic
-from electrum import version
-from electrum.wallet import Multisig_Wallet, Deterministic_Wallet
-from electrum.i18n import _
-from electrum.plugins import BasePlugin, hook
-from electrum.util import NotEnoughFunds
-from electrum.storage import STO_EV_USER_PW
+import electrumcrown
+from electrumcrown import bitcoin
+from electrumcrown import keystore
+from electrumcrown.bitcoin import *
+from electrumcrown.mnemonic import Mnemonic
+from electrumcrown import version
+from electrumcrown.wallet import Multisig_Wallet, Deterministic_Wallet
+from electrumcrown.i18n import _
+from electrumcrown.plugins import BasePlugin, hook
+from electrumcrown.util import NotEnoughFunds
+from electrumcrown.storage import STO_EV_USER_PW
 
 # signing_xpub is hardcoded so that the wallet can be restored from seed, without TrustedCoin's server
 signing_xpub = "xpub661MyMwAqRbcGnMkaTx2594P9EDuiEqMq25PM2aeG6UmwzaohgA6uDmNsvSUV8ubqwA3Wpste1hg69XHgjUuCD5HLcEp2QPzyV1HMrPppsL"
@@ -205,7 +205,7 @@ class Wallet_2fa(Multisig_Wallet):
         return get_user_id(self.storage)
 
     def get_max_amount(self, config, inputs, recipient, fee):
-        from electrum.transaction import Transaction
+        from electrumcrown.transaction import Transaction
         sendable = sum(map(lambda x:x['value'], inputs))
         for i in inputs:
             self.add_input_info(i)
@@ -391,8 +391,8 @@ class TrustedCoinPlugin(BasePlugin):
 
     @classmethod
     def get_xkeys(self, seed, passphrase, derivation):
-        from electrum.mnemonic import Mnemonic
-        from electrum.keystore import bip32_root, bip32_private_derivation
+        from electrumcrown.mnemonic import Mnemonic
+        from electrumcrown.keystore import bip32_root, bip32_private_derivation
         bip32_seed = Mnemonic.mnemonic_to_seed(seed, passphrase)
         xprv, xpub = bip32_root(bip32_seed, 'standard')
         xprv, xpub = bip32_private_derivation(xprv, "m/", derivation)

@@ -37,14 +37,14 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import PyQt5.QtCore as QtCore
 
-from electrum.i18n import _, set_language
-from electrum.plugins import run_hook
-from electrum import WalletStorage
-# from electrum.synchronizer import Synchronizer
-# from electrum.verifier import SPV
-# from electrum.util import DebugMem
-from electrum.util import UserCancelled, print_error
-# from electrum.wallet import Abstract_Wallet
+from electrumcrown.i18n import _, set_language
+from electrumcrown.plugins import run_hook
+from electrumcrown import WalletStorage
+# from electrumcrown.synchronizer import Synchronizer
+# from electrumcrown.verifier import SPV
+# from electrumcrown.util import DebugMem
+from electrumcrown.util import UserCancelled, print_error
+# from electrumcrown.wallet import Abstract_Wallet
 
 from .installwizard import InstallWizard, GoBack
 

@@ -24,8 +24,8 @@
 # SOFTWARE.
 
 from .util import *
-from electrum.i18n import _
-from electrum.util import format_time
+from electrumcrown.i18n import _
+from electrumcrown.util import format_time
 
 
 class InvoiceList(MyTreeWidget):
