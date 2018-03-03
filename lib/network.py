@@ -38,7 +38,7 @@ from . import util
 from .bitcoin import *
 from .interface import Connection, Interface
 from . import blockchain
-from .version import ELECTRUM_VERSION, PROTOCOL_VERSION
+from .version import PACKAGE_VERSION, PROTOCOL_VERSION
 
 
 NODES_RETRY_INTERVAL = 60
@@ -306,7 +306,7 @@ class Network(util.DaemonThread):
         requests = self.unanswered_requests.values()
         self.unanswered_requests = {}
         if self.interface.ping_required():
-            params = [ELECTRUM_VERSION, PROTOCOL_VERSION]
+            params = [PACKAGE_VERSION, PROTOCOL_VERSION]
             self.queue_request('server.version', params, self.interface)
         for request in requests:
             message_id = self.queue_request(request[0], request[1])
@@ -728,7 +728,7 @@ class Network(util.DaemonThread):
             if interface.has_timed_out():
                 self.connection_down(interface.server)
             elif interface.ping_required():
-                params = [ELECTRUM_VERSION, PROTOCOL_VERSION]
+                params = [PACKAGE_VERSION, PROTOCOL_VERSION]
                 self.queue_request('server.version', params, interface)
 
         now = time.time()

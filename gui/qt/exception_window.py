@@ -34,7 +34,7 @@ from PyQt5.QtWidgets import *
 
 from electrumcrown.i18n import _
 import sys
-from electrumcrown import ELECTRUM_VERSION
+from electrumcrown import PACKAGE_VERSION
 
 issue_template = """<h2>Traceback</h2>
 <pre>
@@ -142,7 +142,7 @@ class Exception_Window(QWidget):
 
     def get_additional_info(self):
         args = {
-            "electrum_version": ELECTRUM_VERSION,
+            "electrum_version": PACKAGE_VERSION,
             "os": platform.platform(),
             "wallet_type": "unknown",
             "locale": locale.getdefaultlocale()[0],

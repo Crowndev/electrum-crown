@@ -40,7 +40,7 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
 
 setup(
     name="Electrum Crown",
-    version=version.ELECTRUM_VERSION,
+    version=version.PACKAGE_VERSION,
     install_requires=requirements,
     extras_require={
         'hardware': requirements_hw,
