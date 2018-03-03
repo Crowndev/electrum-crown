@@ -1,9 +1,11 @@
 include LICENCE RELEASE-NOTES AUTHORS
 include README.rst
 include electrum.conf.sample
-include electrum.desktop
+include electrum-crown.desktop
 include *.py
-include electrum
+include electrum-crown
+include contrib/requirements/requirements.txt
+include contrib/requirements/requirements-hw.txt
 recursive-include lib *.py
 recursive-include gui *.py
 recursive-include plugins *.py
