@@ -1,8 +1,18 @@
 #!/bin/bash
 
 # Please update these carefully, some versions won't work under Wine
-NSIS_URL=https://prdownloads.sourceforge.net/nsis/nsis-3.02.1-setup.exe?download
+NSIS_FILENAME=nsis-3.02.1-setup.exe
+NSIS_URL=https://prdownloads.sourceforge.net/nsis/$NSIS_FILENAME?download
 NSIS_SHA256=736c9062a02e297e335f82252e648a883171c98e0d5120439f538c81d429552e
+
+ZBAR_FILENAME=zbarw-20121031-setup.exe
+ZBAR_URL=https://sourceforge.net/projects/zbarw/files/$ZBAR_FILENAME/download
+ZBAR_SHA256=177e32b272fa76528a3af486b74e9cb356707be1c5ace4ed3fcee9723e2c2c02
+
+LIBUSB_FILENAME=libusb-1.0.21.7z
+LIBUSB_URL=https://prdownloads.sourceforge.net/project/libusb/libusb-1.0/libusb-1.0.21/$LIBUSB_FILENAME?download
+LIBUSB_SHA256=acdde63a40b1477898aee6153f9d91d1a2e8a5d93f832ca8ab876498f3a6d2b8
+
 PYTHON_VERSION=3.5.4
 
 ## These settings probably don't need change
@@ -21,18 +31,25 @@ verify_signature() {
         return 0
     else
         echo "$out" >&2
-        exit 0
+        exit 1
     fi
 }
 
 verify_hash() {
-    local file=$1 expected_hash=$2 out=
+    local file=$1 expected_hash=$2
     actual_hash=$(sha256sum $file | awk '{print $1}')
     if [ "$actual_hash" == "$expected_hash" ]; then
         return 0
     else
         echo "$file $actual_hash (unexpected hash)" >&2
-        exit 0
+        exit 1
+    fi
+}
+
+download_if_not_exist() {
+    local file_name=$1 url=$2
+    if [ ! -e $file_name ] ; then
+        wget -O $PWD/$file_name "$url"
     fi
 }
 
@@ -48,7 +65,6 @@ echo "done"
 wine 'wineboot'
 
 echo "Cleaning tmp"
-rm -rf tmp
 mkdir -p tmp
 echo "done"
 
@@ -63,8 +79,8 @@ KEYSERVER_PYTHON_DEV="hkp://keys.gnupg.net"
 gpg --no-default-keyring --keyring $KEYRING_PYTHON_DEV --keyserver $KEYSERVER_PYTHON_DEV --recv-keys $KEYLIST_PYTHON_DEV
 for msifile in core dev exe lib pip tools; do
     echo "Installing $msifile..."
-    wget "https://www.python.org/ftp/python/$PYTHON_VERSION/win32/${msifile}.msi"
-    wget "https://www.python.org/ftp/python/$PYTHON_VERSION/win32/${msifile}.msi.asc"
+    wget -nc "https://www.python.org/ftp/python/$PYTHON_VERSION/win32/${msifile}.msi"
+    wget -nc "https://www.python.org/ftp/python/$PYTHON_VERSION/win32/${msifile}.msi.asc"
     verify_signature "${msifile}.msi.asc" $KEYRING_PYTHON_DEV
     wine msiexec /i "${msifile}.msi" /qb TARGETDIR=C:/python$PYTHON_VERSION
 done
@@ -73,35 +89,34 @@ done
 $PYTHON -m pip install pip --upgrade
 
 # Install pywin32-ctypes (needed by pyinstaller)
-$PYTHON -m pip install pywin32-ctypes
-
-# Install PyQt
-$PYTHON -m pip install PyQt5
-
-## Install pyinstaller
-#$PYTHON -m pip install pyinstaller==3.3
-
-
-# Install ZBar
-#wget -q -O zbar.exe "https://sourceforge.net/projects/zbar/files/zbar/0.10/zbar-0.10-setup.exe/download"
-#wine zbar.exe
-
-# install Cryptodome
-$PYTHON -m pip install pycryptodomex
+$PYTHON -m pip install pywin32-ctypes==0.1.2
 
 # install PySocks
-$PYTHON -m pip install win_inet_pton
+$PYTHON -m pip install win_inet_pton==1.0.1
 
-# install websocket (python2)
-$PYTHON -m pip install websocket-client
+$PYTHON -m pip install -r ../../deterministic-build/requirements-binaries.txt
+
+# Install PyInstaller
+$PYTHON -m pip install https://github.com/ecdsa/pyinstaller/archive/fix_2952.zip
+
+# Install ZBar
+download_if_not_exist $ZBAR_FILENAME "$ZBAR_URL"
+verify_hash $ZBAR_FILENAME "$ZBAR_SHA256"
+wine "$PWD/$ZBAR_FILENAME" /S
 
 # Upgrade setuptools (so Electrum can be installed later)
 $PYTHON -m pip install setuptools --upgrade
 
 # Install NSIS installer
-wget -q -O nsis.exe "$NSIS_URL"
-verify_hash nsis.exe $NSIS_SHA256
-wine nsis.exe /S
+download_if_not_exist $NSIS_FILENAME "$NSIS_URL"
+verify_hash $NSIS_FILENAME "$NSIS_SHA256"
+wine "$PWD/$NSIS_FILENAME" /S
+
+download_if_not_exist $LIBUSB_FILENAME "$LIBUSB_URL"
+verify_hash $LIBUSB_FILENAME "$LIBUSB_SHA256"
+7z x -olibusb $LIBUSB_FILENAME -aos
+
+cp libusb/MS32/dll/libusb-1.0.dll $WINEPREFIX/drive_c/python$PYTHON_VERSION/
 
 # Install UPX
 #wget -O upx.zip "https://downloads.sourceforge.net/project/upx/upx/3.08/upx308w.zip"
@@ -111,5 +126,4 @@ wine nsis.exe /S
 # add dlls needed for pyinstaller:
 cp $WINEPREFIX/drive_c/python$PYTHON_VERSION/Lib/site-packages/PyQt5/Qt/bin/* $WINEPREFIX/drive_c/python$PYTHON_VERSION/
 
-
-echo "Wine is configured. Please run prepare-pyinstaller.sh"
+echo "Wine is configured."
