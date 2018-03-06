@@ -32,14 +32,20 @@ for repo in $PRJ_ROOT; do
     fi
 done
 
-# FIXME workaround for locale and icons, as they are not in github yet
-# we presume that data are already generated for now
-mkdir -p electrum-locale
-mkdir -p electrum-icons
-cp -rf /home/sirak/Desktop/electrum-crown/lib/locale electrum-locale
-cp -rf /home/sirak/Desktop/electrum-crown/gui/qt/icons_rc.py electrum-icons/
+for repo in electrum-crown-locale electrum-crown-icons; do
+    if [ -d $repo ]; then
+	cd $repo
+	git pull
+	git checkout master
+	cd ..
+    else
+    # FIXME use github of crown
+	URL=https://github.com/sirak92/$repo.git
+	git clone -b master $URL $repo
+    fi
+done
 
-pushd electrum-locale
+pushd electrum-crown-locale
 for i in ./locale/*; do
     dir=$i/LC_MESSAGES
     mkdir -p $dir
@@ -60,8 +66,8 @@ popd
 rm -rf $WINEPREFIX/drive_c/$NAME_ROOT
 cp -r $PRJ_ROOT $WINEPREFIX/drive_c/$NAME_ROOT
 cp $PRJ_ROOT/LICENCE .
-cp -r electrum-locale/locale $WINEPREFIX/drive_c/$NAME_ROOT/lib/
-cp electrum-icons/icons_rc.py $WINEPREFIX/drive_c/$NAME_ROOT/gui/qt/
+cp -r electrum-crown-locale/locale $WINEPREFIX/drive_c/$NAME_ROOT/lib/
+cp electrum-crown-icons/icons_rc.py $WINEPREFIX/drive_c/$NAME_ROOT/gui/qt/
 
 # Install frozen dependencies
 $PYTHON -m pip install -r ../../deterministic-build/requirements.txt

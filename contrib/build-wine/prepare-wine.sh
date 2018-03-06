@@ -99,11 +99,10 @@ $PYTHON -m pip install -r ../../deterministic-build/requirements-binaries.txt
 # Install PyInstaller
 $PYTHON -m pip install https://github.com/ecdsa/pyinstaller/archive/fix_2952.zip
 
-# TODO not used due to unexpected hash
 # Install ZBar
-#download_if_not_exist $ZBAR_FILENAME "$ZBAR_URL"
-#verify_hash $ZBAR_FILENAME "$ZBAR_SHA256"
-#wine "$PWD/$ZBAR_FILENAME" /S
+download_if_not_exist $ZBAR_FILENAME "$ZBAR_URL"
+verify_hash $ZBAR_FILENAME "$ZBAR_SHA256"
+wine "$PWD/$ZBAR_FILENAME" /S
 
 # Upgrade setuptools (so Electrum can be installed later)
 $PYTHON -m pip install setuptools --upgrade

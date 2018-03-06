@@ -33,8 +33,8 @@ datas = [
     (home+'lib/checkpoints_testnet.json', 'electrumcrown'),
     (home+'lib/wordlist/english.txt', 'electrumcrown/wordlist'),
     (home+'lib/locale', 'electrumcrown/locale'),
-    (home+'plugins', 'electrumcrown_plugins')
-    #('C:\\Program Files (x86)\\ZBar\\bin\\', '.')
+    (home+'plugins', 'electrumcrown_plugins'),
+    ('C:\\Program Files (x86)\\ZBar\\bin\\', '.')
 ]
 datas += collect_data_files('trezorlib')
 datas += collect_data_files('btchip')
