@@ -1,7 +1,7 @@
 <RCC>
   <qresource prefix="/" >
-    <file>icons/electrum-crown.png</file>
-    <file>icons/electrum-crown-testnet.png</file>
+    <file>icons/electrum.png</file>
+    <file>icons/electrum_testnet.png</file>
     <file>icons/clock1.png</file>
     <file>icons/clock2.png</file>
     <file>icons/clock3.png</file>
@@ -13,7 +13,9 @@
     <file>icons/digitalbitbox_unpaired.png</file>
     <file>icons/expired.png</file>
     <file>icons/electrum_light_icon.png</file>
+    <file>icons/electrum_testnet_light_icon.png</file>
     <file>icons/electrum_dark_icon.png</file>
+    <file>icons/electrum_testnet_dark_icon.png</file>
     <file>icons/file.png</file>
     <file>icons/info.png</file>
     <file>icons/keepkey.png</file>

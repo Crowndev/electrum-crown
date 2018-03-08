@@ -154,9 +154,9 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         outer_vbox.addLayout(hbox)
         outer_vbox.addLayout(Buttons(self.back_button, self.next_button))
         if NetworkConstants.TESTNET:
-            self.set_icon(':icons/electrum-crown-testnet.png')
+            self.set_icon(':icons/electrum_testnet.png')
         else:
-            self.set_icon(':icons/electrum-crown.png')
+            self.set_icon(':icons/electrum.png')
         self.show()
         self.raise_()
         self.refresh_gui()  # Need for QT on MacOSX.  Lame.

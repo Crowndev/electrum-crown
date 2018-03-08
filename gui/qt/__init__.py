@@ -45,6 +45,7 @@ from electrumcrown import WalletStorage
 # from electrumcrown.util import DebugMem
 from electrumcrown.util import UserCancelled, print_error
 # from electrumcrown.wallet import Abstract_Wallet
+from electrumcrown.bitcoin import NetworkConstants
 
 from .installwizard import InstallWizard, GoBack
 
@@ -133,7 +134,13 @@ class ElectrumGui:
 
     def tray_icon(self):
         if self.dark_icon:
-            return QIcon(':icons/electrum_dark_icon.png')
+            if NetworkConstants.TESTNET:
+                return QIcon(':icons/electrum_testnet_dark_icon.png')
+            else:
+                if NetworkConstants.TESTNET:
+                    return QIcon(':icons/electrum_testnet_dark_icon.png')
+                else:
+                    return QIcon(':icons/electrum_dark_icon.png')
         else:
             return QIcon(':icons/electrum_light_icon.png')
 
