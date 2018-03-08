@@ -137,12 +137,12 @@ class ElectrumGui:
             if NetworkConstants.TESTNET:
                 return QIcon(':icons/electrum_testnet_dark_icon.png')
             else:
-                if NetworkConstants.TESTNET:
-                    return QIcon(':icons/electrum_testnet_dark_icon.png')
-                else:
-                    return QIcon(':icons/electrum_dark_icon.png')
+                return QIcon(':icons/electrum_dark_icon.png')
         else:
-            return QIcon(':icons/electrum_light_icon.png')
+            if NetworkConstants.TESTNET:
+                return QIcon(':icons/electrum_testnet_light_icon.png')
+            else:
+                return QIcon(':icons/electrum_light_icon.png')
 
     def toggle_tray_icon(self):
         self.dark_icon = not self.dark_icon
