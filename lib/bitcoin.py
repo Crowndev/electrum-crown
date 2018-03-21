@@ -76,9 +76,7 @@ class NetworkConstants:
         cls.TESTNET = False
         cls.WIF_PREFIX = 0x80
         cls.ADDRTYPE_P2PKH = 0
-        cls.ADDRTYPE_P2SH = 5
-        # TODO check which one is correct
-        # cls.ADDRTYPE_P2SH = bytes.fromhex("1c")
+        cls.ADDRTYPE_P2SH = bytes.fromhex("1c")
         cls.SEGWIT_HRP = "bc"
         cls.GENESIS = "0000000085370d5e122f64f4ab19c68614ff3df78c8d13cb814fd7e69a1dc6da"
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
