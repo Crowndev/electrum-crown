@@ -60,7 +60,6 @@ setup(
         'electrumcrown_plugins.ledger',
         'electrumcrown_plugins.trezor',
         'electrumcrown_plugins.digitalbitbox',
-        'electrumcrown_plugins.trustedcoin',
         'electrumcrown_plugins.virtualkeyboard',
     ],
     package_dir={
