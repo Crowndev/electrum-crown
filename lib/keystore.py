@@ -580,12 +580,7 @@ def from_bip39_seed(seed, passphrase, derivation):
 
 def xtype_from_derivation(derivation):
     """Returns the script type to be used for this derivation."""
-    if derivation.startswith("m/84'"):
-        return 'p2wpkh'
-    elif derivation.startswith("m/49'"):
-        return 'p2wpkh-p2sh'
-    else:
-        return 'standard'
+    return 'standard'
 
 
 # extended pubkeys
@@ -693,17 +688,13 @@ def from_seed(seed, passphrase, is_p2sh):
     if t == 'old':
         keystore = Old_KeyStore({})
         keystore.add_seed(seed)
-    elif t in ['standard', 'segwit']:
+    elif t in ['standard']:
         keystore = BIP32_KeyStore({})
         keystore.add_seed(seed)
         keystore.passphrase = passphrase
         bip32_seed = Mnemonic.mnemonic_to_seed(seed, passphrase)
-        if t == 'standard':
-            der = "m/"
-            xtype = 'standard'
-        else:
-            der = "m/1'/" if is_p2sh else "m/0'/"
-            xtype = 'p2wsh' if is_p2sh else 'p2wpkh'
+        der = "m/"
+        xtype = 'standard'
         keystore.add_xprv_from_seed(bip32_seed, xtype, der)
     else:
         raise BaseException(t)

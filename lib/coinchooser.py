@@ -73,8 +73,7 @@ Bucket = namedtuple('Bucket',
                      'weight',      # as in BIP-141
                      'value',       # in satoshis
                      'coins',       # UTXOs
-                     'min_height',  # min block height where a coin was confirmed
-                     'witness'])    # whether any coin uses segwit
+                     'min_height'])  # min block height where a coin was confirmed
 
 def strip_unneeded(bkts, sufficient_funds):
     '''Remove buckets that are unnecessary in achieving the spend amount'''
@@ -97,14 +96,11 @@ class CoinChooserBase(PrintError):
             buckets[key].append(coin)
 
         def make_Bucket(desc, coins):
-            witness = any(Transaction.is_segwit_input(coin) for coin in coins)
-            # note that we're guessing whether the tx uses segwit based
-            # on this single bucket
-            weight = sum(Transaction.estimated_input_weight(coin, witness)
+            weight = sum(Transaction.estimated_input_weight(coin)
                          for coin in coins)
             value = sum(coin['value'] for coin in coins)
             min_height = min(coin['height'] for coin in coins)
-            return Bucket(desc, weight, value, coins, min_height, witness)
+            return Bucket(desc, weight, value, coins, min_height)
 
         return list(map(make_Bucket, buckets.keys(), buckets.values()))
 
@@ -203,16 +199,6 @@ class CoinChooserBase(PrintError):
 
         def get_tx_weight(buckets):
             total_weight = base_weight + sum(bucket.weight for bucket in buckets)
-            is_segwit_tx = any(bucket.witness for bucket in buckets)
-            if is_segwit_tx:
-                total_weight += 2  # marker and flag
-                # non-segwit inputs were previously assumed to have
-                # a witness of '' instead of '00' (hex)
-                # note that mixed legacy/segwit buckets are already ok
-                num_legacy_inputs = sum((not bucket.witness) * len(bucket.coins)
-                                        for bucket in buckets)
-                total_weight += num_legacy_inputs
-
             return total_weight
 
         def sufficient_funds(buckets):
