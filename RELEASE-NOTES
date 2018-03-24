@@ -27,3 +27,8 @@ up to 10 minutes, but is only done once.
 Ensure you are running Electrum Crown and not Electrum by checking for "Electrum Crown" in the title bar wording.  Some
 users installing from setup.py have reported conflicts if both Electrum and Electrum Crown are installed in parallel
 that way.
+
+Version 1.1
+- Removed support of 2FA and TrustedCoin as it's supported only for BTC
+- Removed segwit addresses support
+- Minor fixes
