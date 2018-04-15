@@ -1,10 +1,4 @@
 {
-    "174.138.13.108": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
-    },
     "54.36.226.238": {
         "pruning": "-",
         "s": "50002",
@@ -12,6 +6,54 @@
         "version": "1.1"
     },
     "54.36.226.239": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "sgp-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "blr-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "nyc-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "lon-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "ams-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "sfo-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "tor-crwseed.infernopool.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.1"
+    },
+    "fra-crwseed.infernopool.com": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",
