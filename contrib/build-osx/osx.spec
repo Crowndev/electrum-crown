@@ -15,7 +15,7 @@ for i, x in enumerate(sys.argv):
         VERSION = sys.argv[i+1]
         break
 else:
-    raise BaseException('no version')
+    raise Exception('no version')
 
 electrum = os.path.abspath(".") + "/"
 block_cipher = None
@@ -25,6 +25,7 @@ hiddenimports = []
 hiddenimports += collect_submodules('trezorlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
+hiddenimports += collect_submodules('websocket')
 
 datas = [
     (electrum+'lib/currencies.json', PYPKG),
@@ -92,7 +93,8 @@ app = BUNDLE(exe,
              name=PACKAGE + '.app',
              icon=electrum+ICONS_FILE,
              bundle_identifier=None,
-             info_plist = {
-                 'NSHighResolutionCapable':'True'
+             info_plist={
+                'NSHighResolutionCapable': 'True',
+                'NSSupportsAutomaticGraphicsSwitching': 'True'
              }
 )
