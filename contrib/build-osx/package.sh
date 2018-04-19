@@ -17,7 +17,7 @@ export PATH=$PATH:~/bin
 . $(dirname "$0")/base.sh
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 Electrum.app"
+    echo "Usage: $0 Electrum Crown.app"
     exit -127
 fi
 
@@ -57,32 +57,32 @@ dmg -|| fail "Unable to install libdmg"
 
 plist=$1/Contents/Info.plist
 test -f "$plist" || fail "Info.plist not found"
-VERSION=$(grep -1 ShortVersionString $plist |tail -1|gawk 'match($0, /<string>(.*)<\/string>/, a) {print a[1]}')
+VERSION=$(grep -1 ShortVersionString "$plist" |tail -1|gawk 'match($0, /<string>(.*)<\/string>/, a) {print a[1]}')
 echo $VERSION
 
 rm -rf /tmp/electrum-macos/image > /dev/null 2>&1
 mkdir /tmp/electrum-macos/image/
-cp -r $1 /tmp/electrum-macos/image/
+cp -r "$1" /tmp/electrum-macos/image/
 
 build_dir=$(dirname "$1")
 test -n "$build_dir" -a -d "$build_dir" || exit
-cd $build_dir
+cd "$build_dir"
 
 ${genisoimage} \
     -no-cache-inodes \
     -D \
     -l \
     -probe \
-    -V "Electrum" \
+    -V "Electrum Crown" \
     -no-pad \
     -r \
     -dir-mode 0755 \
     -apple \
-    -o Electrum_uncompressed.dmg \
+    -o ElectrumCrown_uncompressed.dmg \
     /tmp/electrum-macos/image || fail "Unable to create uncompressed dmg"
 
-dmg dmg Electrum_uncompressed.dmg electrum-$VERSION.dmg || fail "Unable to create compressed dmg"
-rm Electrum_uncompressed.dmg
+dmg dmg ElectrumCrown_uncompressed.dmg electrum-crown-$VERSION.dmg || fail "Unable to create compressed dmg"
+rm ElectrumCrown_uncompressed.dmg
 
 echo "Done."
-md5sum electrum-$VERSION.dmg
+md5sum electrum-crown-$VERSION.dmg

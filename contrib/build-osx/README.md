@@ -26,10 +26,15 @@ they are not deterministic.
 Instead, we use the toolchain that Bitcoin uses: genisoimage and libdmg-hfsplus.
 These tools do not work on macOS, so you need a separate Linux machine (or VM).
 
-Copy the Electrum.app directory over and install the dependencies, e.g.:
+Copy the Electrum Crown.app directory over and install the dependencies, e.g.:
 
     apt install libcap-dev cmake make gcc faketime
-    
+
+For Ubuntu 14.04 the following packages are required:
+
+    sudo apt-get install libbz2-1.0 libbz2-dev libbz2-ocaml libbz2-ocaml-dev
+    sudo apt-get install gawk
+
 Then you can just invoke `package.sh` with the path to the app:
 
     cd electrum-crown
