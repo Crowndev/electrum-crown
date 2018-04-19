@@ -1,3 +1,11 @@
 {
-    "174.138.13.108": { "s": "51002", "t": "51001" }
+    "174.138.13.108": { "s": "51002", "t": "51001" },
+    "sgp-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "blr-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "nyc-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "lon-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "ams-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "sfo-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "tor-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "fra-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" }
 }
