@@ -1,7 +1,10 @@
 2/25/2018 - Sirak Ghazaryan
 
+
 Electrum Crown is a fork of the open source Electrum Bitcoin wallet (www.electrum.org) for Crown.  The current
 release is based on the Electrum 3.0.5 codebase with patches to
+
+Version 1.0-beta
 
 - handle Crown auxpow blocks
 - handle Crown difficulty adjustment algorithm
@@ -28,7 +31,11 @@ Ensure you are running Electrum Crown and not Electrum by checking for "Electrum
 users installing from setup.py have reported conflicts if both Electrum and Electrum Crown are installed in parallel
 that way.
 
-Version 1.1
+
+Version 1.0
+The following changes are done for first stable release.
 - Removed support of 2FA and TrustedCoin as it's supported only for BTC
 - Removed segwit addresses support
+- Fixes for trezor intergration
+- Support Mac version
 - Minor fixes
