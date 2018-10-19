@@ -64,8 +64,8 @@ class NetworkConstants:
     def set_mainnet(cls):
         cls.TESTNET = False
         cls.WIF_PREFIX = 0x80
-        cls.ADDRTYPE_P2PKH = 0
-        cls.ADDRTYPE_P2SH = 28
+        cls.ADDRTYPE_P2PKH = "017507"
+        cls.ADDRTYPE_P2SH = "0174f1"
         cls.GENESIS = "0000000085370d5e122f64f4ab19c68614ff3df78c8d13cb814fd7e69a1dc6da"
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json('servers.json', {})
@@ -86,8 +86,8 @@ class NetworkConstants:
     def set_testnet(cls):
         cls.TESTNET = True
         cls.WIF_PREFIX = 0xef
-        cls.ADDRTYPE_P2PKH = 111
-        cls.ADDRTYPE_P2SH = 196
+        cls.ADDRTYPE_P2PKH = "017acd67"
+        cls.ADDRTYPE_P2SH = "017acd51"
         cls.GENESIS = "0000000085370d5e122f64f4ab19c68614ff3df78c8d13cb814fd7e69a1dc6da"
         cls.DEFAULT_PORTS = {'t':'51001', 's':'51002'}
         cls.DEFAULT_SERVERS = read_json('servers_testnet.json', {})
@@ -327,15 +327,22 @@ def hash_160(public_key):
 
 
 def hash160_to_b58_address(h160, addrtype, witness_program_version=1):
-    s = bytes([addrtype])
+    if isinstance(addrtype, bytes):
+        s = addrtype
+    else:
+        s = bfh(addrtype)
     s += h160
     return base_encode(s+Hash(s)[0:4], base=58)
 
 
 def b58_address_to_hash160(addr):
     addr = to_bytes(addr, 'ascii')
-    _bytes = base_decode(addr, 25, base=58)
-    return _bytes[0], _bytes[1:21]
+    if NetworkConstants.TESTNET:
+        _bytes = base_decode(addr, 28, base=58)
+        return _bytes[0:4], _bytes[4:24]
+    else:
+        _bytes = base_decode(addr, 27, base=58)
+        return _bytes[0:3], _bytes[3:23]
 
 
 def hash160_to_p2pkh(h160):
@@ -368,11 +375,11 @@ def script_to_address(script):
 
 def address_to_script(addr):
     addrtype, hash_160 = b58_address_to_hash160(addr)
-    if addrtype == NetworkConstants.ADDRTYPE_P2PKH:
+    if addrtype == bfh(NetworkConstants.ADDRTYPE_P2PKH):
         script = '76a9'                                      # op_dup, op_hash_160
         script += push_script(bh2u(hash_160))
         script += '88ac'                                     # op_equalverify, op_checksig
-    elif addrtype == NetworkConstants.ADDRTYPE_P2SH:
+    elif addrtype == bfh(NetworkConstants.ADDRTYPE_P2SH):
         script = 'a9'                                        # op_hash_160
         script += push_script(bh2u(hash_160))
         script += '87'                                       # op_equal
@@ -536,7 +543,7 @@ def is_b58_address(addr):
         addrtype, h = b58_address_to_hash160(addr)
     except Exception as e:
         return False
-    if addrtype not in [NetworkConstants.ADDRTYPE_P2PKH, NetworkConstants.ADDRTYPE_P2SH]:
+    if addrtype not in [bfh(NetworkConstants.ADDRTYPE_P2PKH), bfh(NetworkConstants.ADDRTYPE_P2SH)]:
         return False
     return addr == hash160_to_b58_address(h, addrtype)
 
