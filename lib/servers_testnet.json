@@ -1,11 +1,10 @@
 {
-    "174.138.13.108": { "s": "51002", "t": "51001" },
-    "sgp-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
-    "blr-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
-    "nyc-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
-    "lon-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
-    "ams-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
+    "46.101.41.172": { "s": "50002", "t": "50001" },
+    "138.197.144.44": { "s": "50002", "t": "50001" },
+    "128.199.100.139": { "s": "50002", "t": "50001" },
+    "139.59.29.84": { "s": "50002", "t": "50001" },
+    "138.197.182.78": { "s": "50002", "t": "50001" },
     "sfo-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
-    "tor-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" },
-    "fra-testnet-crwseed.infernopool.com": { "s": "50002", "t": "50001" }
+    "67.207.91.152": { "s": "50002", "t": "50001" },
+    "37.139.28.90": { "s": "50002", "t": "50001" }
 }

@@ -322,7 +322,19 @@ class WalletStorage(PrintError):
         return result
 
     def requires_upgrade(self):
-        return self.file_exists() and self.get_seed_version() < FINAL_SEED_VERSION
+        if not self.file_exists():
+            return False
+
+        # old crown prefixes started with m, n(testnet) and 1, 3(mainnet)
+        is_old_prefix = False
+        addresses = self.get('addresses')
+        if isinstance(addresses, dict):
+            for address, details in self.get('addresses', {}).items():
+                for detail in details:
+                    if detail.startswith(('m', 'n', '1', '3')):
+                        is_old_prefix = True
+                        break
+        return is_old_prefix
 
     def upgrade(self):
         self.print_error('upgrading wallet format')
@@ -334,9 +346,41 @@ class WalletStorage(PrintError):
         self.convert_version_14()
         self.convert_version_15()
         self.convert_version_16()
+        self.convert_to_new_prefixes()
 
         self.put('seed_version', FINAL_SEED_VERSION)  # just to be sure
         self.write()
+
+    def convert_to_new_prefixes(self):
+        # just remove old prefixes from everywhere to be generated afterward
+        def remove_address(addr):
+            def remove_from_dict(dict_name):
+                d = self.get(dict_name, None)
+                if d is not None:
+                    d.pop(addr, None)
+                    self.put(dict_name, d)
+
+            def remove_from_list(list_name):
+                lst = self.get(list_name, None)
+                if lst is not None:
+                    s = set(lst)
+                    s -= {addr}
+                    self.put(list_name, list(s))
+
+            # note: we don't remove 'addr' from self.get('addresses')
+            remove_from_dict('addr_history')
+            remove_from_dict('labels')
+            remove_from_dict('payment_requests')
+            remove_from_list('frozen_addresses')
+
+        if self.get('wallet_type') == 'standard':
+            addresses = self.get('addresses')
+            assert isinstance(addresses, dict)
+            addresses_new = dict()
+            for subtype, sub_addresses in addresses.items():
+                for sub_address in sub_addresses:
+                    remove_address(sub_address)
+            self.put('addresses', addresses_new)
 
     def convert_wallet_type(self):
         wallet_type = self.get('wallet_type')
