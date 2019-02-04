@@ -20,17 +20,17 @@ set -e
 
 cd tmp
 
-#for repo in $PRJ_ROOT; do
-#    if [ -d $repo ]; then
-#	cd $repo
-#	git pull
-#	git checkout crown
-#	cd ..
-#    else
-#	URL=https://github.com/Crowndev/$repo.git
-#	git clone -b crown $URL $repo
-#    fi
-#done
+for repo in $PRJ_ROOT; do
+    if [ -d $repo ]; then
+	cd $repo
+	git pull
+	git checkout crown
+	cd ..
+    else
+	URL=https://github.com/Crowndev/$repo.git
+	git clone -b crown $URL $repo
+    fi
+done
 
 for repo in electrum-crown-locale electrum-crown-icons; do
     if [ -d $repo ]; then
