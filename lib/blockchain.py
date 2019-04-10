@@ -175,7 +175,9 @@ class Blockchain(util.PrintError):
         if prev_hash != header.get('prev_block_hash'):
             raise BaseException("at height %s prev hash mismatch: %s vs %s" % (header.get('block_height'),
                                                                                prev_hash, header.get('prev_block_hash')))
-        if NetworkConstants.TESTNET:
+
+        # don't do proof validation as for POS the header information is not enough
+        if NetworkConstants.TESTNET or header['block_height'] >= NetworkConstants.POS_FIRST_BLOCK:
             return
 
         # for the range (last_checkpoint, last_checkpoint + 24] the headers proof of work validation skipped

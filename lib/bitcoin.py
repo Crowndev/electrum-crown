@@ -81,6 +81,8 @@ class NetworkConstants:
         cls.AUX_HEADER_SIZE = 160
         # started from that index difficulty calculation is changed to Dark Gravity Wave v3
         cls.DGW_FIRST_BLOCK = 1059780
+        # started from that height blocks are generated with Proof Of Stake mechanism
+        cls.POS_FIRST_BLOCK = 2330000
 
     @classmethod
     def set_testnet(cls):
