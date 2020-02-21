@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- mode: python -*-
 #
 # Electrum - lightweight Bitcoin client
@@ -25,23 +25,31 @@
 # SOFTWARE.
 
 import threading
+from functools import partial
 
-from PyQt5.Qt import QVBoxLayout, QLabel
-from electrumcrown_gui.qt.password_dialog import PasswordDialog, PW_PASSPHRASE
-from electrumcrown_gui.qt.util import *
+from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtWidgets import QVBoxLayout, QLineEdit, QHBoxLayout, QLabel
+
+from electrumcrown_gui.qt.password_dialog import PasswordLayout, PW_PASSPHRASE
+from electrumcrown_gui.qt.util import (read_QIcon, WWLabel, OkButton, WindowModalDialog,
+                                  Buttons, CancelButton, TaskThread, char_width_in_lineedit)
 
 from electrumcrown.i18n import _
-from electrumcrown.util import PrintError
+from electrumcrown.logging import Logger
+from electrumcrown.util import parse_URI, InvalidBitcoinURI
+
+from .plugin import OutdatedHwFirmwareException
+
 
 # The trickiest thing about this handler was getting windows properly
-# parented on MacOSX.
-class QtHandlerBase(QObject, PrintError):
+# parented on macOS.
+class QtHandlerBase(QObject, Logger):
     '''An interface between the GUI (here, QT) and the device handling
     logic for handling I/O.'''
 
     passphrase_signal = pyqtSignal(object, object)
     message_signal = pyqtSignal(object, object)
-    error_signal = pyqtSignal(object)
+    error_signal = pyqtSignal(object, object)
     word_signal = pyqtSignal(object)
     clear_signal = pyqtSignal()
     query_signal = pyqtSignal(object, object)
@@ -49,7 +57,8 @@ class QtHandlerBase(QObject, PrintError):
     status_signal = pyqtSignal(object)
 
     def __init__(self, win, device):
-        super(QtHandlerBase, self).__init__()
+        QObject.__init__(self)
+        Logger.__init__(self)
         self.clear_signal.connect(self.clear_dialog)
         self.error_signal.connect(self.error_dialog)
         self.message_signal.connect(self.message_dialog)
@@ -72,8 +81,8 @@ class QtHandlerBase(QObject, PrintError):
     def _update_status(self, paired):
         if hasattr(self, 'button'):
             button = self.button
-            icon = button.icon_paired if paired else button.icon_unpaired
-            button.setIcon(QIcon(icon))
+            icon_name = button.icon_paired if paired else button.icon_unpaired
+            button.setIcon(read_QIcon(icon_name))
 
     def query_choice(self, msg, labels):
         self.done.clear()
@@ -90,8 +99,11 @@ class QtHandlerBase(QObject, PrintError):
     def show_message(self, msg, on_cancel=None):
         self.message_signal.emit(msg, on_cancel)
 
-    def show_error(self, msg):
-        self.error_signal.emit(msg)
+    def show_error(self, msg, blocking=False):
+        self.done.clear()
+        self.error_signal.emit(msg, blocking)
+        if blocking:
+            self.done.wait()
 
     def finished(self):
         self.clear_signal.emit()
@@ -111,11 +123,16 @@ class QtHandlerBase(QObject, PrintError):
     def passphrase_dialog(self, msg, confirm):
         # If confirm is true, require the user to enter the passphrase twice
         parent = self.top_level_window()
+        d = WindowModalDialog(parent, _("Enter Passphrase"))
         if confirm:
-            d = PasswordDialog(parent, None, msg, PW_PASSPHRASE)
-            confirmed, p, passphrase = d.run()
+            OK_button = OkButton(d)
+            playout = PasswordLayout(msg=msg, kind=PW_PASSPHRASE, OK_button=OK_button)
+            vbox = QVBoxLayout()
+            vbox.addLayout(playout.layout())
+            vbox.addLayout(Buttons(CancelButton(d), OK_button))
+            d.setLayout(vbox)
+            passphrase = playout.new_password() if d.exec_() else None
         else:
-            d = WindowModalDialog(parent, _("Enter Passphrase"))
             pw = QLineEdit()
             pw.setEchoMode(2)
             pw.setMinimumWidth(200)
@@ -133,7 +150,7 @@ class QtHandlerBase(QObject, PrintError):
         hbox = QHBoxLayout(dialog)
         hbox.addWidget(QLabel(msg))
         text = QLineEdit()
-        text.setMaximumWidth(100)
+        text.setMaximumWidth(12 * char_width_in_lineedit())
         text.returnPressed.connect(dialog.accept)
         hbox.addWidget(text)
         hbox.addStretch(1)
@@ -144,7 +161,7 @@ class QtHandlerBase(QObject, PrintError):
     def message_dialog(self, msg, on_cancel):
         # Called more than once during signing, to confirm output and fee
         self.clear_dialog()
-        title = _('Please check your %s device') % self.device
+        title = _('Please check your {} device').format(self.device)
         self.dialog = dialog = WindowModalDialog(self.top_level_window(), title)
         l = QLabel(msg)
         vbox = QVBoxLayout(dialog)
@@ -154,8 +171,10 @@ class QtHandlerBase(QObject, PrintError):
             vbox.addLayout(Buttons(CancelButton(dialog)))
         dialog.show()
 
-    def error_dialog(self, msg):
+    def error_dialog(self, msg, blocking):
         self.win.show_error(msg, parent=self.top_level_window())
+        if blocking:
+            self.done.set()
 
     def clear_dialog(self):
         if self.dialog:
@@ -184,23 +203,38 @@ class QtPluginBase(object):
             if not isinstance(keystore, self.keystore_class):
                 continue
             if not self.libraries_available:
-                window.show_error(
-                    _("Cannot find python library for") + " '%s'.\n" % self.name \
-                    + _("Make sure you install it with python3")
-                )
+                message = keystore.plugin.get_library_not_available_message()
+                window.show_error(message)
                 return
             tooltip = self.device + '\n' + (keystore.label or 'unnamed')
             cb = partial(self.show_settings_dialog, window, keystore)
-            button = StatusBarButton(QIcon(self.icon_unpaired), tooltip, cb)
+            button = StatusBarButton(read_QIcon(self.icon_unpaired), tooltip, cb)
             button.icon_paired = self.icon_paired
             button.icon_unpaired = self.icon_unpaired
             window.statusBar().addPermanentWidget(button)
             handler = self.create_handler(window)
             handler.button = button
             keystore.handler = handler
-            keystore.thread = TaskThread(window, window.on_error)
+            keystore.thread = TaskThread(window, on_error=partial(self.on_task_thread_error, window, keystore))
+            self.add_show_address_on_hw_device_button_for_receive_addr(wallet, keystore, window)
             # Trigger a pairing
             keystore.thread.add(partial(self.get_client, keystore))
+
+    def on_task_thread_error(self, window, keystore, exc_info):
+        e = exc_info[1]
+        if isinstance(e, OutdatedHwFirmwareException):
+            if window.question(e.text_ignore_old_fw_and_continue(), title=_("Outdated device firmware")):
+                self.set_ignore_outdated_fw()
+                # will need to re-pair
+                devmgr = self.device_manager()
+                def re_pair_device():
+                    device_id = self.choose_device(window, keystore)
+                    devmgr.unpair_id(device_id)
+                    self.get_client(keystore)
+                keystore.thread.add(re_pair_device)
+            return
+        else:
+            window.on_error(exc_info)
 
     def choose_device(self, window, keystore):
         '''This dialog box should be usable even if the user has
@@ -216,3 +250,20 @@ class QtPluginBase(object):
 
     def show_settings_dialog(self, window, keystore):
         device_id = self.choose_device(window, keystore)
+
+    def add_show_address_on_hw_device_button_for_receive_addr(self, wallet, keystore, main_window):
+        plugin = keystore.plugin
+        receive_address_e = main_window.receive_address_e
+
+        def show_address():
+            addr = str(receive_address_e.text())
+            # note: 'addr' could be ln invoice or BIP21 URI
+            try:
+                uri = parse_URI(addr)
+            except InvalidBitcoinURI:
+                pass
+            else:
+                addr = uri.get('address')
+            keystore.thread.add(partial(plugin.show_address, wallet, addr, keystore))
+        dev_name = f"{plugin.device} ({keystore.label})"
+        receive_address_e.addButton("eye1.png", show_address, _("Show on {}").format(dev_name))

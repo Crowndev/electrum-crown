@@ -31,6 +31,7 @@ import threading
 import hmac
 
 from .i18n import _
+from .logging import get_logger, Logger
 
 
 import urllib.request, urllib.parse, urllib.error
@@ -64,6 +65,24 @@ class UserCancelled(Exception):
     '''An exception that is suppressed from the user'''
     pass
 
+class InvalidBitcoinURI(Exception): pass
+
+class UserFacingException(Exception):
+    """Exception that contains information intended to be shown to the user."""
+
+class BitcoinException(Exception): pass
+
+def versiontuple(v):
+    return tuple(map(int, (v.split("."))))
+
+
+def resource_path(*parts):
+    return os.path.join(pkg_dir, *parts)
+
+# absolute path to python package folder of electrum ("lib")
+pkg_dir = os.path.split(os.path.realpath(__file__))[0]
+
+
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
         from .transaction import Transaction
@@ -86,10 +105,12 @@ class PrintError(object):
     def print_msg(self, *msg):
         print_msg("[%s]" % self.diagnostic_name(), *msg)
 
-class ThreadJob(PrintError):
+class ThreadJob(Logger):
     """A job that is run periodically from a thread's main loop.  run() is
     called from that thread's context.
     """
+    def __init__(self):
+        Logger.__init__(self)
 
     def run(self):
         """Called periodically from the thread"""
@@ -120,12 +141,13 @@ class DebugMem(ThreadJob):
             self.mem_stats()
             self.next_time = time.time() + self.interval
 
-class DaemonThread(threading.Thread, PrintError):
+class DaemonThread(threading.Thread, Logger):
     """ daemon thread that terminates cleanly """
 
     def __init__(self):
         threading.Thread.__init__(self)
         self.parent_thread = threading.currentThread()
+        Logger.__init__(self)
         self.running = False
         self.running_lock = threading.Lock()
         self.job_lock = threading.Lock()
@@ -168,8 +190,8 @@ class DaemonThread(threading.Thread, PrintError):
         if 'ANDROID_DATA' in os.environ:
             import jnius
             jnius.detach()
-            self.print_error("jnius detach")
-        self.print_error("stopped")
+            self.logger.info("jnius detach")
+        self.logger.info("stopped")
 
 
 # TODO: disable

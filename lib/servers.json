@@ -5,43 +5,19 @@
         "t": "50001",
         "version": "1.1"
     },
-    "139.59.29.11": {
+    "seasia.electrum.crownplatform.com": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",
         "version": "1.1"
     },
-    "67.205.154.19": {
+    "latam.electrum.crownplatform.com": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",
         "version": "1.1"
     },
-    "178.62.22.23": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
-    },
-    "146.185.165.149": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
-    },
-    "107.170.221.232": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
-    },
-    "159.203.19.13": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
-    },
-    "139.59.154.34": {
+    "pacific.electrum.crownplatform.com": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",

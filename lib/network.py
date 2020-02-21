@@ -166,7 +166,7 @@ class Network(util.DaemonThread):
         self.config = SimpleConfig(config) if isinstance(config, dict) else config
         self.num_server = 10 if not self.config.get('oneserver') else 0
         self.blockchains = blockchain.read_blockchains(self.config)
-        self.print_error("blockchains", self.blockchains.keys())
+        self.logger.info("blockchains", self.blockchains.keys())
         self.blockchain_index = config.get('blockchain_index', 0)
         if self.blockchain_index not in self.blockchains.keys():
             self.blockchain_index = 0
@@ -177,7 +177,7 @@ class Network(util.DaemonThread):
             try:
                 deserialize_server(self.default_server)
             except:
-                self.print_error('Warning: failed to parse server-string; falling back to random.')
+                self.logger.info('Warning: failed to parse server-string; falling back to random.')
                 self.default_server = None
         if not self.default_server:
             self.default_server = pick_random_server()
@@ -266,12 +266,12 @@ class Network(util.DaemonThread):
     def server_is_lagging(self):
         sh = self.get_server_height()
         if not sh:
-            self.print_error('no height for main interface')
+            self.logger.info('no height for main interface')
             return True
         lh = self.get_local_height()
         result = (lh - sh) > 1
         if result:
-            self.print_error('%s is lagging (%d vs %d)' % (self.default_server, sh, lh))
+            self.logger.info('%s is lagging (%d vs %d)' % (self.default_server, sh, lh))
         return result
 
     def set_status(self, status):
@@ -295,12 +295,12 @@ class Network(util.DaemonThread):
         message_id = self.message_id
         self.message_id += 1
         if self.debug:
-            self.print_error(interface.host, "-->", method, params, message_id)
+            self.logger.info(interface.host, "-->", method, params, message_id)
         interface.queue_request(method, params, message_id)
         return message_id
 
     def send_subscriptions(self):
-        self.print_error('sending subscriptions to', self.interface.server, len(self.unanswered_requests), len(self.subscribed_addresses))
+        self.logger.info('sending subscriptions to', self.interface.server, len(self.unanswered_requests), len(self.subscribed_addresses))
         self.sub_cache.clear()
         # Resend unanswered requests
         requests = self.unanswered_requests.values()
@@ -374,7 +374,7 @@ class Network(util.DaemonThread):
     def start_interface(self, server):
         if (not server in self.interfaces and not server in self.connecting):
             if server == self.default_server:
-                self.print_error("connecting to %s as new interface" % server)
+                self.logger.info("connecting to %s as new interface" % server)
                 self.set_status('connecting')
             self.connecting.add(server)
             c = Connection(server, self.socket_queue, self.config.path)
@@ -397,7 +397,7 @@ class Network(util.DaemonThread):
             socket._socketobject = socket.socket
             socket._getaddrinfo = socket.getaddrinfo
         if proxy:
-            self.print_error('setting proxy', proxy)
+            self.logger.info('setting proxy', proxy)
             proxy_mode = proxy_modes.index(proxy["mode"]) + 1
             socks.setdefaultproxy(proxy_mode,
                                   proxy["host"],
@@ -415,14 +415,14 @@ class Network(util.DaemonThread):
     def start_network(self, protocol, proxy):
         assert not self.interface and not self.interfaces
         assert not self.connecting and self.socket_queue.empty()
-        self.print_error('starting network')
+        self.logger.info('starting network')
         self.disconnected_servers = set([])
         self.protocol = protocol
         self.set_proxy(proxy)
         self.start_interfaces()
 
     def stop_network(self):
-        self.print_error("stopping network")
+        self.logger.info("stopping network")
         for interface in list(self.interfaces.values()):
             self.close_interface(interface)
         if self.interface:
@@ -492,7 +492,7 @@ class Network(util.DaemonThread):
             return
         i = self.interfaces[server]
         if self.interface != i:
-            self.print_error("switching to", server)
+            self.logger.info("switching to", server)
             # stop any current interface in order to terminate subscriptions
             # fixme: we don't want to close headers sub
             #self.close_interface(self.interface)
@@ -519,7 +519,7 @@ class Network(util.DaemonThread):
 
     def process_response(self, interface, response, callbacks):
         if self.debug:
-            self.print_error("<--", response)
+            self.logger.info("<--", response)
         error = response.get('error')
         result = response.get('result')
         method = response.get('method')
@@ -547,12 +547,12 @@ class Network(util.DaemonThread):
                 i = params[0]
                 fee = int(result*COIN)
                 self.config.update_fee_estimates(i, fee)
-                self.print_error("fee_estimates[%d]" % i, fee)
+                self.logger.info("fee_estimates[%d]" % i, fee)
                 self.notify('fee')
         elif method == 'blockchain.relayfee':
             if error is None:
                 self.relay_fee = int(result * COIN)
-                self.print_error("relayfee", self.relay_fee)
+                self.logger.info("relayfee", self.relay_fee)
         elif method == 'blockchain.block.get_chunk':
             self.on_get_chunk(interface, response)
         elif method == 'blockchain.block.get_header':
@@ -684,7 +684,7 @@ class Network(util.DaemonThread):
     def connection_down(self, server):
         '''A connection to server either went down, or was never made.
         We distinguish by whether it is in self.interfaces.'''
-        self.print_error('close connection with %s' % server)
+        self.logger.info('close connection with %s' % server)
         self.disconnected_servers.add(server)
         if server == self.default_server:
             self.set_status('disconnected')
@@ -736,7 +736,7 @@ class Network(util.DaemonThread):
         if len(self.interfaces) + len(self.connecting) < self.num_server:
             self.start_random_interface()
             if now - self.nodes_retry_time > NODES_RETRY_INTERVAL:
-                self.print_error('network: retrying connections')
+                self.logger.info('network: retrying connections')
                 self.disconnected_servers = set([])
                 self.nodes_retry_time = now
 
@@ -1011,10 +1011,10 @@ class Network(util.DaemonThread):
                 chain.catch_up = interface
                 interface.mode = 'catch_up'
                 interface.blockchain = chain
-                self.print_error("switching to catchup mode", tip,  self.blockchains)
+                self.logger.info("switching to catchup mode", tip,  self.blockchains)
                 self.request_header(interface, 0)
             else:
-                self.print_error("chain already catching up with", chain.catch_up.server)
+                self.logger.info("chain already catching up with", chain.catch_up.server)
 
     def blockchain(self):
         if self.interface and self.interface.blockchain is not None:

@@ -4,12 +4,13 @@ import sys
 import platform
 import queue
 from collections import namedtuple
-from functools import partial
+from functools import partial, lru_cache
 
 from electrumcrown.i18n import _
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
+from electrumcrown.util import resource_path
 
 if platform.system() == 'Windows':
     MONOSPACE_FONT = 'Lucida Console'
@@ -41,6 +42,21 @@ expiration_values = [
     (_('1 week'), 7*24*60*60),
     (_('Never'), None)
 ]
+
+
+def icon_path(icon_basename):
+    return resource_path('gui', 'icons', icon_basename)
+
+
+@lru_cache(maxsize=1000)
+def read_QIcon(icon_basename):
+    return QIcon(icon_path(icon_basename))
+
+
+def char_width_in_lineedit() -> int:
+    char_width = QFontMetrics(QLineEdit().font()).averageCharWidth()
+    # 'averageCharWidth' seems to underestimate on Windows, hence 'max()'
+    return max(9, char_width)
 
 
 class Timer(QThread):

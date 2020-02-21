@@ -42,6 +42,7 @@ class Synchronizer(ThreadJob):
     '''
 
     def __init__(self, wallet, network):
+        ThreadJob.__init__(self)
         self.wallet = wallet
         self.network = network
         self.new_addresses = set()
@@ -54,7 +55,7 @@ class Synchronizer(ThreadJob):
 
     def parse_response(self, response):
         if response.get('error'):
-            self.print_error("response error:", response)
+            self.logger.info("response error:", response)
             return None, None
         return response['params'], response['result']
 
@@ -102,7 +103,7 @@ class Synchronizer(ThreadJob):
         if not params:
             return
         addr = params[0]
-        self.print_error("receiving history", addr, len(result))
+        self.logger.info("receiving history", addr, len(result))
         server_status = self.requested_histories[addr]
         hashes = set(map(lambda item: item['tx_hash'], result))
         hist = list(map(lambda item: (item['tx_hash'], item['height']), result))
@@ -114,10 +115,10 @@ class Synchronizer(ThreadJob):
             self.network.interface.print_error("serving improperly sorted address histories")
         # Check that txids are unique
         if len(hashes) != len(result):
-            self.print_error("error: server history has non-unique txids: %s"% addr)
+            self.logger.info("error: server history has non-unique txids: %s"% addr)
         # Check that the status corresponds to what was announced
         elif self.get_status(hist) != server_status:
-            self.print_error("error: status mismatch: %s" % addr)
+            self.logger.info("error: status mismatch: %s" % addr)
         else:
             # Store received history
             self.wallet.receive_history_callback(addr, hist, tx_fees)
@@ -136,11 +137,11 @@ class Synchronizer(ThreadJob):
         try:
             tx.deserialize()
         except Exception:
-            self.print_msg("cannot deserialize transaction, skipping", tx_hash)
+            self.logger.error("cannot deserialize transaction, skipping", tx_hash)
             return
         tx_height = self.requested_tx.pop(tx_hash)
         self.wallet.receive_tx_callback(tx_hash, tx, tx_height)
-        self.print_error("received tx %s height: %d bytes: %d" %
+        self.logger.info("received tx %s height: %d bytes: %d" %
                          (tx_hash, tx_height, len(tx.raw)))
         # callbacks
         self.network.trigger_callback('new_transaction', tx)
@@ -175,7 +176,7 @@ class Synchronizer(ThreadJob):
             self.request_missing_txs(history)
 
         if self.requested_tx:
-            self.print_error("missing tx", self.requested_tx)
+            self.logger.info("missing tx", self.requested_tx)
         self.subscribe_to_addresses(set(self.wallet.get_addresses()))
 
     def run(self):

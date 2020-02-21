@@ -28,11 +28,13 @@ import base64
 import hmac
 import os
 import json
+from enum import IntEnum
+from typing import List, Tuple, NamedTuple, Union, Iterable
 
 import ecdsa
 import pyaes
 
-from .util import bfh, bh2u, to_string
+from .util import bfh, bh2u, to_string, BitcoinException
 from . import version
 from .util import print_error, InvalidPassword, assert_bytes, to_bytes, inv_dict
 
@@ -53,9 +55,11 @@ def read_json(filename, default):
 XPRV_HEADERS = {
     'standard': 0x0488ade4,
 }
+XPRV_HEADERS_INV = inv_dict(XPRV_HEADERS)
 XPUB_HEADERS = {
     'standard': 0x0488b21e,
 }
+XPUB_HEADERS_INV = inv_dict(XPUB_HEADERS)
 
 
 class NetworkConstants:
@@ -249,6 +253,10 @@ def sha256(x):
     x = to_bytes(x, 'utf8')
     return bytes(hashlib.sha256(x).digest())
 
+def sha256d(x: Union[bytes, str]) -> bytes:
+    x = to_bytes(x, 'utf8')
+    out = bytes(sha256(sha256(x)))
+    return out
 
 def Hash(x):
     x = to_bytes(x, 'utf8')
@@ -328,6 +336,14 @@ def hash_160(public_key):
         return md.digest()
 
 
+def hmac_oneshot(key: bytes, msg: bytes, digest) -> bytes:
+    if hasattr(hmac, 'digest'):
+        # requires python 3.7+; faster
+        return hmac.digest(key, msg, digest)
+    else:
+        return hmac.new(key, msg, digest).digest()
+
+
 def hash160_to_b58_address(h160, addrtype, witness_program_version=1):
     if isinstance(addrtype, bytes):
         s = addrtype
@@ -401,6 +417,13 @@ def public_key_to_p2pk_script(pubkey):
     script = push_script(pubkey)
     script += 'ac'                                           # op_checksig
     return script
+
+def pubkeyhash_to_p2pkh_script(pubkey_hash160: str) -> str:
+    script = bytes([opcodes.OP_DUP, opcodes.OP_HASH160]).hex()
+    script += push_script(pubkey_hash160)
+    script += bytes([opcodes.OP_EQUALVERIFY, opcodes.OP_CHECKSIG]).hex()
+    return script
+
 
 __b58chars = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 assert len(__b58chars) == 58
@@ -842,7 +865,7 @@ def _CKD_priv(k, c, s, is_prime):
 # This function allows us to find the nth public key, as long as n is
 #  non-negative. If n is negative, we need the master private key to find it.
 def CKD_pub(cK, c, n):
-    if n & BIP32_PRIME: raise
+    if n & BIP32_PRIME: raise RuntimeError
     return _CKD_pub(cK, c, bfh(rev_hex(int_to_hex(n,4))))
 
 # helper function, callable with arbitrary string
@@ -995,3 +1018,321 @@ def bip32_private_key(sequence, k, chain):
     for i in sequence:
         k, chain = CKD_priv(k, chain, i)
     return k
+
+# def convert_bip32_path_to_list_of_uint32(n: str) -> List[int]:
+#     """Convert bip32 path to list of uint32 integers with prime flags
+#     m/0/-1/1' -> [0, 0x80000001, 0x80000001]
+#
+#     based on code in trezorlib
+#     """
+#     if not n:
+#         return []
+#     if n.endswith("/"):
+#         n = n[:-1]
+#     n = n.split('/')
+#     # cut leading "m" if present, but do not require it
+#     if n[0] == "m":
+#         n = n[1:]
+#     path = []
+#     for x in n:
+#         if x == '':
+#             # gracefully allow repeating "/" chars in path.
+#             # makes concatenating paths easier
+#             continue
+#         prime = 0
+#         if x.endswith("'") or x.endswith("h"):
+#             x = x[:-1]
+#             prime = BIP32_PRIME
+#         if x.startswith('-'):
+#             if prime:
+#                 raise ValueError(f"bip32 path child index is signalling hardened level in multiple ways")
+#             prime = BIP32_PRIME
+#         child_index = abs(int(x)) | prime
+#         if child_index > UINT32_MAX:
+#             raise ValueError(f"bip32 path child index too large: {child_index} > {UINT32_MAX}")
+#         path.append(child_index)
+#     return path
+
+
+class opcodes(IntEnum):
+    # push value
+    OP_0 = 0x00
+    OP_FALSE = OP_0
+    OP_PUSHDATA1 = 0x4c
+    OP_PUSHDATA2 = 0x4d
+    OP_PUSHDATA4 = 0x4e
+    OP_1NEGATE = 0x4f
+    OP_RESERVED = 0x50
+    OP_1 = 0x51
+    OP_TRUE = OP_1
+    OP_2 = 0x52
+    OP_3 = 0x53
+    OP_4 = 0x54
+    OP_5 = 0x55
+    OP_6 = 0x56
+    OP_7 = 0x57
+    OP_8 = 0x58
+    OP_9 = 0x59
+    OP_10 = 0x5a
+    OP_11 = 0x5b
+    OP_12 = 0x5c
+    OP_13 = 0x5d
+    OP_14 = 0x5e
+    OP_15 = 0x5f
+    OP_16 = 0x60
+
+    # control
+    OP_NOP = 0x61
+    OP_VER = 0x62
+    OP_IF = 0x63
+    OP_NOTIF = 0x64
+    OP_VERIF = 0x65
+    OP_VERNOTIF = 0x66
+    OP_ELSE = 0x67
+    OP_ENDIF = 0x68
+    OP_VERIFY = 0x69
+    OP_RETURN = 0x6a
+
+    # stack ops
+    OP_TOALTSTACK = 0x6b
+    OP_FROMALTSTACK = 0x6c
+    OP_2DROP = 0x6d
+    OP_2DUP = 0x6e
+    OP_3DUP = 0x6f
+    OP_2OVER = 0x70
+    OP_2ROT = 0x71
+    OP_2SWAP = 0x72
+    OP_IFDUP = 0x73
+    OP_DEPTH = 0x74
+    OP_DROP = 0x75
+    OP_DUP = 0x76
+    OP_NIP = 0x77
+    OP_OVER = 0x78
+    OP_PICK = 0x79
+    OP_ROLL = 0x7a
+    OP_ROT = 0x7b
+    OP_SWAP = 0x7c
+    OP_TUCK = 0x7d
+
+    # splice ops
+    OP_CAT = 0x7e
+    OP_SUBSTR = 0x7f
+    OP_LEFT = 0x80
+    OP_RIGHT = 0x81
+    OP_SIZE = 0x82
+
+    # bit logic
+    OP_INVERT = 0x83
+    OP_AND = 0x84
+    OP_OR = 0x85
+    OP_XOR = 0x86
+    OP_EQUAL = 0x87
+    OP_EQUALVERIFY = 0x88
+    OP_RESERVED1 = 0x89
+    OP_RESERVED2 = 0x8a
+
+    # numeric
+    OP_1ADD = 0x8b
+    OP_1SUB = 0x8c
+    OP_2MUL = 0x8d
+    OP_2DIV = 0x8e
+    OP_NEGATE = 0x8f
+    OP_ABS = 0x90
+    OP_NOT = 0x91
+    OP_0NOTEQUAL = 0x92
+
+    OP_ADD = 0x93
+    OP_SUB = 0x94
+    OP_MUL = 0x95
+    OP_DIV = 0x96
+    OP_MOD = 0x97
+    OP_LSHIFT = 0x98
+    OP_RSHIFT = 0x99
+
+    OP_BOOLAND = 0x9a
+    OP_BOOLOR = 0x9b
+    OP_NUMEQUAL = 0x9c
+    OP_NUMEQUALVERIFY = 0x9d
+    OP_NUMNOTEQUAL = 0x9e
+    OP_LESSTHAN = 0x9f
+    OP_GREATERTHAN = 0xa0
+    OP_LESSTHANOREQUAL = 0xa1
+    OP_GREATERTHANOREQUAL = 0xa2
+    OP_MIN = 0xa3
+    OP_MAX = 0xa4
+
+    OP_WITHIN = 0xa5
+
+    # crypto
+    OP_RIPEMD160 = 0xa6
+    OP_SHA1 = 0xa7
+    OP_SHA256 = 0xa8
+    OP_HASH160 = 0xa9
+    OP_HASH256 = 0xaa
+    OP_CODESEPARATOR = 0xab
+    OP_CHECKSIG = 0xac
+    OP_CHECKSIGVERIFY = 0xad
+    OP_CHECKMULTISIG = 0xae
+    OP_CHECKMULTISIGVERIFY = 0xaf
+
+    # expansion
+    OP_NOP1 = 0xb0
+    OP_CHECKLOCKTIMEVERIFY = 0xb1
+    OP_NOP2 = OP_CHECKLOCKTIMEVERIFY
+    OP_CHECKSEQUENCEVERIFY = 0xb2
+    OP_NOP3 = OP_CHECKSEQUENCEVERIFY
+    OP_NOP4 = 0xb3
+    OP_NOP5 = 0xb4
+    OP_NOP6 = 0xb5
+    OP_NOP7 = 0xb6
+    OP_NOP8 = 0xb7
+    OP_NOP9 = 0xb8
+    OP_NOP10 = 0xb9
+
+    OP_INVALIDOPCODE = 0xff
+
+    def hex(self) -> str:
+        return bytes([self]).hex()
+
+
+# class InvalidMasterKeyVersionBytes(BitcoinException): pass
+#
+#
+# class BIP32Node(NamedTuple):
+#     xtype: str
+#     eckey: Union[ecc.ECPubkey, ecc.ECPrivkey]
+#     chaincode: bytes
+#     depth: int = 0
+#     fingerprint: bytes = b'\x00'*4
+#     child_number: bytes = b'\x00'*4
+#
+#     @classmethod
+#     def from_xkey(cls, xkey: str, *, net=None) -> 'BIP32Node':
+#         if net is None:
+#             net = NetworkConstants
+#         xkey = DecodeBase58Check(xkey)
+#         if len(xkey) != 78:
+#             raise BitcoinException('Invalid length for extended key: {}'
+#                                    .format(len(xkey)))
+#         depth = xkey[4]
+#         fingerprint = xkey[5:9]
+#         child_number = xkey[9:13]
+#         chaincode = xkey[13:13 + 32]
+#         header = int.from_bytes(xkey[0:4], byteorder='big')
+#         if header in XPRV_HEADERS_INV:
+#             headers_inv = XPRV_HEADERS_INV
+#             is_private = True
+#         elif header in XPUB_HEADERS_INV:
+#             headers_inv = XPUB_HEADERS_INV
+#             is_private = False
+#         else:
+#             raise InvalidMasterKeyVersionBytes(f'Invalid extended key format: {hex(header)}')
+#         xtype = headers_inv[header]
+#         if is_private:
+#             eckey = ecc.ECPrivkey(xkey[13 + 33:])
+#         else:
+#             eckey = ecc.ECPubkey(xkey[13 + 32:])
+#         return BIP32Node(xtype=xtype,
+#                          eckey=eckey,
+#                          chaincode=chaincode,
+#                          depth=depth,
+#                          fingerprint=fingerprint,
+#                          child_number=child_number)
+#
+#     @classmethod
+#     def from_rootseed(cls, seed: bytes, *, xtype: str) -> 'BIP32Node':
+#         I = hmac_oneshot(b"Bitcoin seed", seed, hashlib.sha512)
+#         master_k = I[0:32]
+#         master_c = I[32:]
+#         return BIP32Node(xtype=xtype,
+#                          eckey=ecc.ECPrivkey(master_k),
+#                          chaincode=master_c)
+#
+#     def to_xprv(self, *, net=None) -> str:
+#         if not self.is_private():
+#             raise Exception("cannot serialize as xprv; private key missing")
+#         # TODO sirak
+#         payload = (xprv_header(self.xtype) +
+#                    bytes([self.depth]) +
+#                    self.fingerprint +
+#                    self.child_number +
+#                    self.chaincode +
+#                    bytes([0]) +
+#                    self.eckey.get_secret_bytes())
+#         assert len(payload) == 78, f"unexpected xprv payload len {len(payload)}"
+#         return EncodeBase58Check(payload)
+#
+#     def to_xpub(self, *, net=None) -> str:
+#         # TODO sirak
+#         payload = (xpub_header(self.xtype) +
+#                    bytes([self.depth]) +
+#                    self.fingerprint +
+#                    self.child_number +
+#                    self.chaincode +
+#                    self.eckey.get_public_key_bytes(compressed=True))
+#         assert len(payload) == 78, f"unexpected xpub payload len {len(payload)}"
+#         return EncodeBase58Check(payload)
+#
+#     def to_xkey(self, *, net=None) -> str:
+#         if self.is_private():
+#             return self.to_xprv(net=net)
+#         else:
+#             return self.to_xpub(net=net)
+#
+#     def convert_to_public(self) -> 'BIP32Node':
+#         if not self.is_private():
+#             return self
+#         pubkey = ecc.ECPubkey(self.eckey.get_public_key_bytes())
+#         return self._replace(eckey=pubkey)
+#
+#     def is_private(self) -> bool:
+#         return isinstance(self.eckey, ecc.ECPrivkey)
+#
+#     def subkey_at_private_derivation(self, path: Union[str, Iterable[int]]) -> 'BIP32Node':
+#         if path is None:
+#             raise Exception("derivation path must not be None")
+#         if isinstance(path, str):
+#             path = convert_bip32_path_to_list_of_uint32(path)
+#         if not self.is_private():
+#             raise Exception("cannot do bip32 private derivation; private key missing")
+#         if not path:
+#             return self
+#         depth = self.depth
+#         chaincode = self.chaincode
+#         privkey = self.eckey.get_secret_bytes()
+#         for child_index in path:
+#             parent_privkey = privkey
+#             privkey, chaincode = CKD_priv(privkey, chaincode, child_index)
+#             depth += 1
+#         parent_pubkey = ecc.ECPrivkey(parent_privkey).get_public_key_bytes(compressed=True)
+#         fingerprint = hash_160(parent_pubkey)[0:4]
+#         child_number = child_index.to_bytes(length=4, byteorder="big")
+#         return BIP32Node(xtype=self.xtype,
+#                          eckey=ecc.ECPrivkey(privkey),
+#                          chaincode=chaincode,
+#                          depth=depth,
+#                          fingerprint=fingerprint,
+#                          child_number=child_number)
+#
+#     def subkey_at_public_derivation(self, path: Union[str, Iterable[int]]) -> 'BIP32Node':
+#         if path is None:
+#             raise Exception("derivation path must not be None")
+#         if isinstance(path, str):
+#             path = convert_bip32_path_to_list_of_uint32(path)
+#         if not path:
+#             return self.convert_to_public()
+#         depth = self.depth
+#         chaincode = self.chaincode
+#         pubkey = self.eckey.get_public_key_bytes(compressed=True)
+#         for child_index in path:
+#             parent_pubkey = pubkey
+#             pubkey, chaincode = CKD_pub(pubkey, chaincode, child_index)
+#             depth += 1
+#         fingerprint = hash_160(parent_pubkey)[0:4]
+#         child_number = child_index.to_bytes(length=4, byteorder="big")
+#         return BIP32Node(xtype=self.xtype,
+#                          eckey=ecc.ECPubkey(pubkey),
+#                          chaincode=chaincode,
+#                          depth=depth,
+#                          fingerprint=fingerprint,
+#                          child_number=child_number)

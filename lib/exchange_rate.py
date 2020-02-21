@@ -385,6 +385,7 @@ def get_exchanges_by_ccy(history=True):
 class FxThread(ThreadJob):
 
     def __init__(self, config, network):
+        ThreadJob.__init__(self)
         self.config = config
         self.network = network
         self.ccy = self.get_currency()
@@ -455,7 +456,7 @@ class FxThread(ThreadJob):
 
     def set_exchange(self, name):
         class_ = globals().get(name, BitcoinAverage)
-        self.print_error("using exchange", name)
+        self.logger.info("using exchange", name)
         if self.config_exchange() != name:
             self.config.set_key('use_exchange', name, True)
         self.exchange = class_(self.on_quotes, self.on_history)

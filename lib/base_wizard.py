@@ -34,6 +34,8 @@ from .wallet import Imported_Wallet, Standard_Wallet, Multisig_Wallet, wallet_ty
 from .storage import STO_EV_USER_PW, STO_EV_XPUB_PW, get_derivation_used_for_hw_device_encryption
 from .i18n import _
 from .util import UserCancelled
+from .plugins import Plugins, HardwarePluginLibraryUnavailable
+from .logging import Logger
 
 # hardware device setup purpose
 HWD_SETUP_NEW_WALLET, HWD_SETUP_DECRYPT_WALLET = range(0, 2)
@@ -41,10 +43,11 @@ HWD_SETUP_NEW_WALLET, HWD_SETUP_DECRYPT_WALLET = range(0, 2)
 class ScriptTypeNotSupported(Exception): pass
 
 
-class BaseWizard(object):
+class BaseWizard(Logger):
 
     def __init__(self, config, storage):
         super(BaseWizard, self).__init__()
+        Logger.__init__(self)
         self.config = config
         self.storage = storage
         self.wallet = None
@@ -179,47 +182,84 @@ class BaseWizard(object):
         k = keystore.from_master_key(text)
         self.on_keystore(k)
 
-    def choose_hw_device(self, purpose=HWD_SETUP_NEW_WALLET):
+    def choose_hw_device(self, purpose=HWD_SETUP_NEW_WALLET, *, storage=None):
         title = _('Hardware Keystore')
         # check available plugins
-        support = self.plugins.get_hardware_support()
-        if not support:
-            msg = '\n'.join([
-                _('No hardware wallet support found on your system.'),
-                _('Please install the relevant libraries (eg python-trezor for Trezor).'),
-            ])
-            self.confirm_dialog(title=title, message=msg, run_next= lambda x: self.choose_hw_device(purpose))
-            return
-        # scan devices
-        devices = []
+        supported_plugins = self.plugins.get_hardware_support()
+        devices = []  # type: List[Tuple[str, DeviceInfo]]
         devmgr = self.plugins.device_manager
-        for name, description, plugin in support:
-            try:
-                # FIXME: side-effect: unpaired_device_info sets client.handler
-                u = devmgr.unpaired_device_infos(None, plugin)
-            except:
-                devmgr.print_error("error", name)
-                continue
-            devices += list(map(lambda x: (name, x), u))
+        debug_msg = ''
+
+        def failed_getting_device_infos(name, e):
+            nonlocal debug_msg
+            err_str_oneline = ' // '.join(str(e).splitlines())
+            self.logger.warning(f'error getting device infos for {name}: {err_str_oneline}')
+            indented_error_msg = '    '.join([''] + str(e).splitlines(keepends=True))
+            debug_msg += f'  {name}: (error getting device infos)\n{indented_error_msg}\n'
+
+        # scan devices
+        try:
+            scanned_devices = devmgr.scan_devices()
+        except BaseException as e:
+            self.logger.info('error scanning devices: {}'.format(repr(e)))
+            debug_msg = '  {}:\n    {}'.format(_('Error scanning devices'), e)
+        else:
+            for splugin in supported_plugins:
+                name, plugin = splugin.name, splugin.plugin
+                # plugin init errored?
+                if not plugin:
+                    e = splugin.exception
+                    indented_error_msg = '    '.join([''] + str(e).splitlines(keepends=True))
+                    debug_msg += f'  {name}: (error during plugin init)\n'
+                    debug_msg += '    {}\n'.format(_('You might have an incompatible library.'))
+                    debug_msg += f'{indented_error_msg}\n'
+                    continue
+                # see if plugin recognizes 'scanned_devices'
+                try:
+                    # FIXME: side-effect: unpaired_device_info sets client.handler
+                    device_infos = devmgr.unpaired_device_infos(None, plugin, devices=scanned_devices,
+                                                                include_failing_clients=True)
+                except HardwarePluginLibraryUnavailable as e:
+                    failed_getting_device_infos(name, e)
+                    continue
+                except BaseException as e:
+                    self.logger.exception('')
+                    failed_getting_device_infos(name, e)
+                    continue
+                device_infos_failing = list(filter(lambda di: di.exception is not None, device_infos))
+                for di in device_infos_failing:
+                    failed_getting_device_infos(name, di.exception)
+                device_infos_working = list(filter(lambda di: di.exception is None, device_infos))
+                devices += list(map(lambda x: (name, x), device_infos_working))
+        if not debug_msg:
+            debug_msg = '  {}'.format(_('No exceptions encountered.'))
         if not devices:
-            msg = ''.join([
-                _('No hardware device detected.') + '\n',
-                _('To trigger a rescan, press \'Next\'.') + '\n\n',
-                _('If your device is not detected on Windows, go to "Settings", "Devices", "Connected devices", and do "Remove device". Then, plug your device again.') + ' ',
-                _('On Linux, you might have to add a new permission to your udev rules.'),
-            ])
-            self.confirm_dialog(title=title, message=msg, run_next= lambda x: self.choose_hw_device(purpose))
+            msg = (_('No hardware device detected.') + '\n' +
+                   _('To trigger a rescan, press \'Next\'.') + '\n\n')
+            if sys.platform == 'win32':
+                msg += _('If your device is not detected on Windows, go to "Settings", "Devices", "Connected devices", '
+                         'and do "Remove device". Then, plug your device again.') + '\n'
+                msg += _('While this is less than ideal, it might help if you run Electrum as Administrator.') + '\n'
+            else:
+                msg += _('On Linux, you might have to add a new permission to your udev rules.') + '\n'
+            msg += '\n\n'
+            msg += _('Debug message') + '\n' + debug_msg
+            self.confirm_dialog(title=title, message=msg,
+                                run_next=lambda x: self.choose_hw_device(purpose))
             return
         # select device
         self.devices = devices
         choices = []
         for name, info in devices:
             state = _("initialized") if info.initialized else _("wiped")
-            label = info.label or _("An unnamed %s")%name
-            descr = "%s [%s, %s]" % (label, name, state)
+            label = info.label or _("An unnamed {}").format(name)
+            try: transport_str = info.device.transport_ui_string[:20]
+            except: transport_str = 'unknown transport'
+            descr = f"{label} [{name}, {state}, {transport_str}]"
             choices.append(((name, info), descr))
         msg = _('Select a device') + ':'
-        self.choice_dialog(title=title, message=msg, choices=choices, run_next= lambda *args: self.on_device(*args, purpose=purpose))
+        self.choice_dialog(title=title, message=msg, choices=choices,
+                           run_next=lambda *args: self.on_device(*args, purpose=purpose))
 
     def on_device(self, name, device_info, *, purpose):
         self.plugin = self.plugins.get_plugin(name)

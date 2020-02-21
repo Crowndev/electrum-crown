@@ -142,7 +142,7 @@ class Daemon(DaemonThread):
             server = VerifyingJSONRPCServer((host, port), logRequests=False,
                                             rpc_user=rpc_user, rpc_password=rpc_password)
         except Exception as e:
-            self.print_error('Warning: cannot initialize RPC server on host', host, e)
+            self.logger.warning('Warning: cannot initialize RPC server on host', host, e)
             self.server = None
             os.close(fd)
             return
@@ -285,13 +285,13 @@ class Daemon(DaemonThread):
         for k, wallet in self.wallets.items():
             wallet.stop_threads()
         if self.network:
-            self.print_error("shutting down network")
+            self.logger.info("shutting down network")
             self.network.stop()
             self.network.join()
         self.on_stop()
 
     def stop(self):
-        self.print_error("stopping, removing lockfile")
+        self.logger.info("stopping, removing lockfile")
         remove_lockfile(get_lockfile(self.config))
         DaemonThread.stop(self)
 

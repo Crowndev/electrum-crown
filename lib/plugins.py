@@ -22,20 +22,26 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from collections import namedtuple
-import traceback
-import sys
 import os
-import imp
 import pkgutil
+import importlib.util
 import time
 import threading
+import sys
+from typing import NamedTuple, Any, Union, TYPE_CHECKING, Optional
 
-from .util import print_error
 from .i18n import _
-from .util import profiler, PrintError, DaemonThread, UserCancelled, ThreadJob
-from . import bitcoin
+from .util import (profiler, DaemonThread, UserCancelled, ThreadJob, UserFacingException)
+from electrumcrown import bitcoin
+import electrumcrown_plugins
+from electrumcrown.simple_config import SimpleConfig
+from electrumcrown.logging import get_logger, Logger
 
+if TYPE_CHECKING:
+    from electrumcrown_plugins.hw_wallet import HW_PluginBase
+
+
+_logger = get_logger(__name__)
 plugin_loaders = {}
 hook_names = set()
 hooks = {}
@@ -43,15 +49,13 @@ hooks = {}
 
 class Plugins(DaemonThread):
 
+    LOGGING_SHORTCUT = 'p'
+
     @profiler
-    def __init__(self, config, is_local, gui_name):
+    def __init__(self, config: SimpleConfig, gui_name):
         DaemonThread.__init__(self)
-        if is_local:
-            find = imp.find_module('plugins')
-            plugins = imp.load_module('electrumcrown_plugins', *find)
-        else:
-            plugins = __import__('electrumcrown_plugins')
-        self.pkgpath = os.path.dirname(plugins.__file__)
+        self.setName('Plugins')
+        self.pkgpath = os.path.dirname(electrumcrown_plugins.__file__)
         self.config = config
         self.hw_wallets = {}
         self.plugins = {}
@@ -64,11 +68,19 @@ class Plugins(DaemonThread):
 
     def load_plugins(self):
         for loader, name, ispkg in pkgutil.iter_modules([self.pkgpath]):
-            # do not load deprecated plugins
-            if name in ['plot', 'exchange_rate']:
-                continue
-            m = loader.find_module(name).load_module(name)
-            d = m.__dict__
+            full_name = f'electrumcrown_plugins.{name}'
+            spec = importlib.util.find_spec(full_name)
+            if spec is None:  # pkgutil found it but importlib can't ?!
+                raise Exception(f"Error pre-loading {full_name}: no spec")
+            try:
+                module = importlib.util.module_from_spec(spec)
+                # sys.modules needs to be modified for relative imports to work
+                # see https://stackoverflow.com/a/50395128
+                sys.modules[spec.name] = module
+                spec.loader.exec_module(module)
+            except Exception as e:
+                raise Exception(f"Error pre-loading {full_name}: {repr(e)}") from e
+            d = module.__dict__
             gui_good = self.gui_name in d.get('available_for', [])
             if not gui_good:
                 continue
@@ -83,8 +95,7 @@ class Plugins(DaemonThread):
                 try:
                     self.load_plugin(name)
                 except BaseException as e:
-                    traceback.print_exc(file=sys.stdout)
-                    self.print_error("cannot initialize plugin %s:" % name, str(e))
+                    self.logger.exception(f"cannot initialize plugin {name}: {e}")
 
     def get(self, name):
         return self.plugins.get(name)
@@ -95,16 +106,20 @@ class Plugins(DaemonThread):
     def load_plugin(self, name):
         if name in self.plugins:
             return self.plugins[name]
-        full_name = 'electrumcrown_plugins.' + name + '.' + self.gui_name
-        loader = pkgutil.find_loader(full_name)
-        if not loader:
+        full_name = f'electrumcrown_plugins.{name}.{self.gui_name}'
+        spec = importlib.util.find_spec(full_name)
+        if spec is None:
             raise RuntimeError("%s implementation for %s plugin not found"
                                % (self.gui_name, name))
-        p = loader.load_module(full_name)
-        plugin = p.Plugin(self, self.config, name)
+        try:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            plugin = module.Plugin(self, self.config, name)
+        except Exception as e:
+            raise Exception(f"Error loading {name} plugin: {repr(e)}") from e
         self.add_jobs(plugin.thread_jobs())
         self.plugins[name] = plugin
-        self.print_error("loaded", name)
+        self.logger.info(f"loaded {name}")
         return plugin
 
     def close_plugin(self, plugin):
@@ -124,7 +139,7 @@ class Plugins(DaemonThread):
             return
         self.plugins.pop(name)
         p.close()
-        self.print_error("closed", name)
+        self.logger.info(f"closed {name}")
 
     def toggle(self, name):
         p = self.get(name)
@@ -138,7 +153,8 @@ class Plugins(DaemonThread):
         for dep, s in deps:
             try:
                 __import__(dep)
-            except ImportError:
+            except ImportError as e:
+                self.logger.warning(f'Plugin {name} unavailable: {repr(e)}')
                 return False
         requires = d.get('requires_wallet_type', [])
         return not requires or w.wallet_type in requires
@@ -150,15 +166,21 @@ class Plugins(DaemonThread):
                 try:
                     p = self.get_plugin(name)
                     if p.is_enabled():
-                        out.append([name, details[2], p])
-                except:
-                    traceback.print_exc()
-                    self.print_error("cannot load plugin for:", name)
+                        out.append(HardwarePluginToScan(name=name,
+                                                        description=details[2],
+                                                        plugin=p,
+                                                        exception=None))
+                except Exception as e:
+                    self.logger.exception(f"cannot load plugin for: {name}")
+                    out.append(HardwarePluginToScan(name=name,
+                                                    description=details[2],
+                                                    plugin=None,
+                                                    exception=e))
         return out
 
     def register_wallet_type(self, name, gui_good, wallet_type):
         from .wallet import register_wallet_type, register_constructor
-        self.print_error("registering wallet type", (wallet_type, name))
+        self.logger.info(f"registering wallet type {(wallet_type, name)}")
         def loader():
             plugin = self.get_plugin(name)
             register_constructor(wallet_type, plugin.wallet_class)
@@ -171,7 +193,7 @@ class Plugins(DaemonThread):
             return self.get_plugin(name).keystore_class(d)
         if details[0] == 'hardware':
             self.hw_wallets[name] = (gui_good, details)
-            self.print_error("registering hardware %s: %s" %(name, details))
+            self.logger.info(f"registering hardware {name}: {details}")
             register_keystore(details[1], dynamic_constructor)
 
     def get_plugin(self, name):
@@ -198,8 +220,7 @@ def run_hook(name, *args):
             try:
                 r = f(*args)
             except Exception:
-                print_error("Plugin error")
-                traceback.print_exc(file=sys.stdout)
+                _logger.exception(f"Plugin error. plugin: {p}, hook: {name}")
                 r = False
             if r:
                 results.append(r)
@@ -209,13 +230,14 @@ def run_hook(name, *args):
         return results[0]
 
 
-class BasePlugin(PrintError):
+class BasePlugin(Logger):
 
     def __init__(self, parent, config, name):
         self.parent = parent  # The plugins object
         self.name = name
         self.config = config
         self.wallet = None
+        Logger.__init__(self)
         # add self to hooks
         for k in dir(self):
             if k in hook_names:
@@ -223,19 +245,21 @@ class BasePlugin(PrintError):
                 l.append((self, getattr(self, k)))
                 hooks[k] = l
 
-    def diagnostic_name(self):
-        return self.name
-
     def __str__(self):
         return self.name
 
     def close(self):
         # remove self from hooks
-        for k in dir(self):
-            if k in hook_names:
-                l = hooks.get(k, [])
-                l.remove((self, getattr(self, k)))
-                hooks[k] = l
+        for attr_name in dir(self):
+            if attr_name in hook_names:
+                # found attribute in self that is also the name of a hook
+                l = hooks.get(attr_name, [])
+                try:
+                    l.remove((self, getattr(self, attr_name)))
+                except ValueError:
+                    # maybe attr name just collided with hook name and was not hook
+                    continue
+                hooks[attr_name] = l
         self.parent.close_plugin(self)
         self.on_close()
 
@@ -261,16 +285,34 @@ class BasePlugin(PrintError):
         pass
 
 
-class DeviceNotFoundError(Exception):
-    pass
+class DeviceUnpairableError(UserFacingException): pass
+class HardwarePluginLibraryUnavailable(Exception): pass
 
-class DeviceUnpairableError(Exception):
-    pass
 
-Device = namedtuple("Device", "path interface_number id_ product_key usage_page")
-DeviceInfo = namedtuple("DeviceInfo", "device label initialized")
+class Device(NamedTuple):
+    path: Union[str, bytes]
+    interface_number: int
+    id_: str
+    product_key: Any   # when using hid, often Tuple[int, int]
+    usage_page: int
+    transport_ui_string: str
 
-class DeviceMgr(ThreadJob, PrintError):
+
+class DeviceInfo(NamedTuple):
+    device: Device
+    label: Optional[str] = None
+    initialized: Optional[bool] = None
+    exception: Optional[Exception] = None
+
+
+class HardwarePluginToScan(NamedTuple):
+    name: str
+    description: str
+    plugin: Optional['HW_PluginBase']
+    exception: Optional[Exception]
+
+
+class DeviceMgr(ThreadJob):
     '''Manages hardware clients.  A client communicates over a hardware
     channel with the device.
 
@@ -302,7 +344,7 @@ class DeviceMgr(ThreadJob, PrintError):
     hidapi are implemented.'''
 
     def __init__(self, config):
-        super(DeviceMgr, self).__init__()
+        ThreadJob.__init__(self)
         # Keyed by xpub.  The value is the device id
         # has been paired, and None otherwise.
         self.xpub_ids = {}
@@ -312,6 +354,8 @@ class DeviceMgr(ThreadJob, PrintError):
         # What we recognise.  Each entry is a (vendor_id, product_id)
         # pair.
         self.recognised_hardware = set()
+        # Custom enumerate functions for devices we don't know about.
+        self.enumerate_func = set()
         # For synchronization
         self.lock = threading.RLock()
         self.hid_lock = threading.RLock()
@@ -334,6 +378,9 @@ class DeviceMgr(ThreadJob, PrintError):
         for pair in device_pairs:
             self.recognised_hardware.add(pair)
 
+    def register_enumerate_func(self, func):
+        self.enumerate_func.add(func)
+
     def create_client(self, device, handler, plugin):
         # Get from cache first
         client = self.client_lookup(device.id_)
@@ -341,7 +388,7 @@ class DeviceMgr(ThreadJob, PrintError):
             return client
         client = plugin.create_client(device, handler)
         if client:
-            self.print_error("Registering", client)
+            self.logger.info(f"Registering {client}")
             with self.lock:
                 self.clients[client] = (device.path, device.id_)
         return client
@@ -359,18 +406,23 @@ class DeviceMgr(ThreadJob, PrintError):
 
     def unpair_xpub(self, xpub):
         with self.lock:
-            if not xpub in self.xpub_ids:
+            if xpub not in self.xpub_ids:
                 return
             _id = self.xpub_ids.pop(xpub)
-        client = self.client_lookup(_id)
-        self.clients.pop(client, None)
-        if client:
-            client.close()
+            self._close_client(_id)
 
     def unpair_id(self, id_):
         xpub = self.xpub_by_id(id_)
         if xpub:
             self.unpair_xpub(xpub)
+        else:
+            self._close_client(id_)
+
+    def _close_client(self, id_):
+        client = self.client_lookup(id_)
+        self.clients.pop(client, None)
+        if client:
+            client.close()
 
     def pair_xpub(self, xpub, id_):
         with self.lock:
@@ -391,9 +443,9 @@ class DeviceMgr(ThreadJob, PrintError):
         return self.client_lookup(id_)
 
     def client_for_keystore(self, plugin, handler, keystore, force_pair):
-        self.print_error("getting client for keystore")
+        self.logger.info("getting client for keystore")
         if handler is None:
-            raise BaseException(_("Handler not found for") + ' ' + plugin.name + '\n' + _("A library is probably missing."))
+            raise Exception(_("Handler not found for") + ' ' + plugin.name + '\n' + _("A library is probably missing."))
         handler.update_status(False)
         devices = self.scan_devices()
         xpub = keystore.xpub
@@ -404,7 +456,7 @@ class DeviceMgr(ThreadJob, PrintError):
             client = self.force_pair_xpub(plugin, handler, info, xpub, derivation, devices)
         if client:
             handler.update_status(True)
-        self.print_error("end client for keystore")
+        self.logger.info("end client for keystore")
         return client
 
     def client_by_xpub(self, plugin, xpub, handler, devices):
@@ -442,26 +494,38 @@ class DeviceMgr(ThreadJob, PrintError):
         # The user input has wrong PIN or passphrase, or cancelled input,
         # or it is not pairable
         raise DeviceUnpairableError(
-            _('Electrum Crown cannot pair with your %s.\n\n'
-              'Before you request crowns to be sent to addresses in this '
+            _('Electrum cannot pair with your {}.\n\n'
+              'Before you request bitcoins to be sent to addresses in this '
               'wallet, ensure you can pair with your device, or that you have '
               'its seed (and passphrase, if any).  Otherwise all bitcoins you '
-              'receive will be unspendable.') % plugin.device)
+              'receive will be unspendable.').format(plugin.device))
 
-    def unpaired_device_infos(self, handler, plugin, devices=None):
+    def unpaired_device_infos(self, handler, plugin: 'HW_PluginBase', devices=None,
+                              include_failing_clients=False):
         '''Returns a list of DeviceInfo objects: one for each connected,
         unpaired device accepted by the plugin.'''
+        if not plugin.libraries_available:
+            message = plugin.get_library_not_available_message()
+            raise HardwarePluginLibraryUnavailable(message)
         if devices is None:
             devices = self.scan_devices()
         devices = [dev for dev in devices if not self.xpub_by_id(dev.id_)]
         infos = []
         for device in devices:
-            if not device.product_key in plugin.DEVICE_IDS:
+            if device.product_key not in plugin.DEVICE_IDS:
                 continue
-            client = self.create_client(device, handler, plugin)
+            try:
+                client = self.create_client(device, handler, plugin)
+            except Exception as e:
+                self.logger.error(f'failed to create client for {plugin.name} at {device.path}: {repr(e)}')
+                if include_failing_clients:
+                    infos.append(DeviceInfo(device=device, exception=e))
+                continue
             if not client:
                 continue
-            infos.append(DeviceInfo(device, client.label(), client.is_initialized()))
+            infos.append(DeviceInfo(device=device,
+                                    label=client.label(),
+                                    initialized=client.is_initialized()))
 
         return infos
 
@@ -472,9 +536,14 @@ class DeviceMgr(ThreadJob, PrintError):
             infos = self.unpaired_device_infos(handler, plugin, devices)
             if infos:
                 break
-            msg = _('Please insert your %s.  Verify the cable is '
-                    'connected and that no other application is using it.\n\n'
-                    'Try to connect again?') % plugin.device
+            msg = _('Please insert your {}').format(plugin.device)
+            if keystore.label:
+                msg += ' ({})'.format(keystore.label)
+            msg += '. {}\n\n{}'.format(
+                _('Verify the cable is connected and that '
+                  'no other application is using it.'),
+                _('Try to connect again?')
+            )
             if not handler.yes_no_question(msg):
                 raise UserCancelled()
             devices = None
@@ -484,27 +553,27 @@ class DeviceMgr(ThreadJob, PrintError):
         for info in infos:
             if info.label == keystore.label:
                 return info
-        msg = _("Please select which %s device to use:") % plugin.device
-        descriptions = [info.label + ' (%s)'%(_("initialized") if info.initialized else _("wiped")) for info in infos]
+        msg = _("Please select which {} device to use:").format(plugin.device)
+        descriptions = [str(info.label) + ' (%s)'%(_("initialized") if info.initialized else _("wiped")) for info in infos]
         c = handler.query_choice(msg, descriptions)
         if c is None:
             raise UserCancelled()
         info = infos[c]
         # save new label
         keystore.set_label(info.label)
-        handler.win.wallet.save_keystore()
+        if handler.win.wallet is not None:
+            handler.win.wallet.save_keystore()
         return info
 
-    def scan_devices(self):
-        # All currently supported hardware libraries use hid, so we
-        # assume it here.  This can be easily abstracted if necessary.
-        # Note this import must be local so those without hardware
-        # wallet libraries are not affected.
-        import hid
-        self.print_error("scanning devices...")
+    def _scan_devices_with_hid(self):
+        try:
+            import hid
+        except ImportError:
+            return []
+
         with self.hid_lock:
             hid_list = hid.enumerate(0, 0)
-        # First see what's connected that we know about
+
         devices = []
         for d in hid_list:
             product_key = (d['vendor_id'], d['product_id'])
@@ -516,16 +585,37 @@ class DeviceMgr(ThreadJob, PrintError):
                 if len(id_) == 0:
                     id_ = str(d['path'])
                 id_ += str(interface_number) + str(usage_page)
-                devices.append(Device(d['path'], interface_number,
-                                      id_, product_key, usage_page))
+                devices.append(Device(path=d['path'],
+                                      interface_number=interface_number,
+                                      id_=id_,
+                                      product_key=product_key,
+                                      usage_page=usage_page,
+                                      transport_ui_string='hid'))
+        return devices
 
-        # Now find out what was disconnected
+    def scan_devices(self):
+        self.logger.info("scanning devices...")
+
+        # First see what's connected that we know about
+        devices = self._scan_devices_with_hid()
+
+        # Let plugin handlers enumerate devices we don't know about
+        for f in self.enumerate_func:
+            try:
+                new_devices = f()
+            except BaseException as e:
+                self.logger.error('custom device enum failed. func {}, error {}'
+                                  .format(str(f), repr(e)))
+            else:
+                devices.extend(new_devices)
+
+        # find out what was disconnected
         pairs = [(dev.path, dev.id_) for dev in devices]
         disconnected_ids = []
         with self.lock:
             connected = {}
             for client, pair in self.clients.items():
-                if pair in pairs:
+                if pair in pairs and client.has_usable_connection_with_device():
                     connected[client] = pair
                 else:
                     disconnected_ids.append(pair[1])
