@@ -12,3 +12,4 @@ from . import daemon
 from .transaction import Transaction
 from .plugins import BasePlugin
 from .commands import Commands, known_commands
+from . import bip32 
