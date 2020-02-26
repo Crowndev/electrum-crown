@@ -8,7 +8,7 @@ from electrumcrown.bip32 import BIP32Node, convert_bip32_path_to_list_of_uint32 
 from electrumcrown.i18n import _
 from electrumcrown.keystore import bip39_normalize_passphrase
 from electrumcrown.logging import Logger
-from plugins.hw_wallet.plugin import OutdatedHwFirmwareException
+from ..hw_wallet.plugin import OutdatedHwFirmwareException
 from electrumcrown.util import UserCancelled
 from trezorlib.client import TrezorClient
 from trezorlib.exceptions import TrezorFailure, Cancelled, OutdatedFirmwareError
