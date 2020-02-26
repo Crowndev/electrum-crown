@@ -2,7 +2,7 @@ import traceback
 import sys
 from typing import NamedTuple, Any
 
-from lib.util import bfh, bh2u, versiontuple, UserCancelled, UserFacingException
+from electrumcrown.util import bfh, bh2u, versiontuple, UserCancelled, UserFacingException
 
 from electrumcrown.bitcoin import TYPE_ADDRESS, TYPE_SCRIPT
 from electrumcrown.bip32 import BIP32Node, convert_bip32_path_to_list_of_uint32 as parse_path
