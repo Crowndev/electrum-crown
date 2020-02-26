@@ -303,8 +303,8 @@ class QtPlugin(QtPluginBase):
 
 
 class Plugin(TrezorPlugin, QtPlugin):
-    icon_unpaired = "trezor_unpaired.png"
-    icon_paired = "trezor.png"
+    icon_unpaired = ":icons/trezor_unpaired.png"
+    icon_paired = ":icons/trezor.png"
 
     @classmethod
     def pin_matrix_widget_class(self):
