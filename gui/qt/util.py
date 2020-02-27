@@ -45,7 +45,7 @@ expiration_values = [
 
 
 def icon_path(icon_basename):
-    return resource_path('gui', 'icons', icon_basename)
+    return resource_path('icons', icon_basename)
 
 
 @lru_cache(maxsize=1000)
