@@ -44,15 +44,6 @@ expiration_values = [
 ]
 
 
-def icon_path(icon_basename):
-    return resource_path('icons', icon_basename)
-
-
-@lru_cache(maxsize=1000)
-def read_QIcon(icon_basename):
-    return QIcon(icon_path(icon_basename))
-
-
 def char_width_in_lineedit() -> int:
     char_width = QFontMetrics(QLineEdit().font()).averageCharWidth()
     # 'averageCharWidth' seems to underestimate on Windows, hence 'max()'

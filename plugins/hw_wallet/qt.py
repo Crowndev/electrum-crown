@@ -31,7 +31,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QVBoxLayout, QLineEdit, QHBoxLayout, QLabel
 
 from electrumcrown_gui.qt.password_dialog import PasswordLayout, PW_PASSPHRASE
-from electrumcrown_gui.qt.util import (read_QIcon, WWLabel, OkButton, WindowModalDialog,
+from electrumcrown_gui.qt.util import (QIcon, WWLabel, OkButton, WindowModalDialog,
                                   Buttons, CancelButton, TaskThread, char_width_in_lineedit)
 
 from electrumcrown.i18n import _
@@ -81,8 +81,8 @@ class QtHandlerBase(QObject, Logger):
     def _update_status(self, paired):
         if hasattr(self, 'button'):
             button = self.button
-            icon_name = button.icon_paired if paired else button.icon_unpaired
-            button.setIcon(read_QIcon(icon_name))
+            icon = button.icon_paired if paired else button.icon_unpaired
+            button.setIcon(QIcon(icon))
 
     def query_choice(self, msg, labels):
         self.done.clear()
@@ -208,7 +208,7 @@ class QtPluginBase(object):
                 return
             tooltip = self.device + '\n' + (keystore.label or 'unnamed')
             cb = partial(self.show_settings_dialog, window, keystore)
-            button = StatusBarButton(read_QIcon(self.icon_unpaired), tooltip, cb)
+            button = StatusBarButton(QIcon(self.icon_unpaired), tooltip, cb)
             button.icon_paired = self.icon_paired
             button.icon_unpaired = self.icon_unpaired
             window.statusBar().addPermanentWidget(button)
