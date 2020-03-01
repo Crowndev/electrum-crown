@@ -3,8 +3,8 @@
 # Parameterize
 PYTHON_VERSION=3.6.4
 BUILDDIR=/tmp/electrum-build
-PACKAGE=Electrum
-GIT_REPO=https://github.com/spesmilo/electrum
+PACKAGE="Electrum Crown"
+GIT_REPO=https://github.com/Crowndev/electrum-crown
 LIBSECP_VERSION="b408c6a8b287003d1ade5709e6f7bc3c7f1d5be7"
 
 . $(dirname "$0")/base.sh
