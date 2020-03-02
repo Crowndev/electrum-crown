@@ -22,7 +22,7 @@ set -e
 #here="$(dirname "$(readlink -e "$0")")"
 #
 #. "$CONTRIB"/build_tools_util.sh
-
+mkdir -p tmp
 cd tmp
 
 for repo in $PRJ_ROOT; do
