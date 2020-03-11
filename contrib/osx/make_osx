@@ -74,20 +74,15 @@ git submodule update --init
 rm  -rf $BUILDDIR > /dev/null 2>&1
 mkdir $BUILDDIR
 
-info "generating locale"
-(
-    if ! which msgfmt > /dev/null 2>&1; then
-        brew install gettext
-        brew link --force gettext
-    fi
-    cd "$CONTRIB"/deterministic-build/electrum-locale
-    for i in ./locale/*; do
-        dir="$ROOT_FOLDER"/electrum/$i/LC_MESSAGES
-        mkdir -p $dir
-        msgfmt --output-file=$dir/electrum.mo $i/electrum.po || true
-    done
-) || fail "failed generating locale"
+info "Downloading icons and locale..."
+# FIXME use github of crown
+GIT_URL=https://github.com/sirak92
+for repo in electrum-crown-locale electrum-crown-icons; do
+  git clone $GIT_URL/$repo.git $BUILDDIR/$repo
+done
 
+cp -R $BUILDDIR/electrum-crown-locale/locale/ ./lib/locale/
+cp    $BUILDDIR/electrum-crown-icons/icons_rc.py ./gui/qt/
 
 info "Downloading libusb..."
 curl https://homebrew.bintray.com/bottles/libusb-1.0.22.el_capitan.bottle.tar.gz | \
@@ -142,13 +137,13 @@ APP_SIGN="$APP_SIGN" pyinstaller --noconfirm --ascii --clean --name $VERSION con
 info "Adding bitcoin URI types to Info.plist"
 plutil -insert 'CFBundleURLTypes' \
 	-xml '<array><dict> <key>CFBundleURLName</key> <string>bitcoin</string> <key>CFBundleURLSchemes</key> <array><string>bitcoin</string></array> </dict></array>' \
-	-- dist/$PACKAGE.app/Contents/Info.plist \
+	-- "dist/$PACKAGE.app/Contents/Info.plist" \
 	|| fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
 
 DoCodeSignMaybe "app bundle" "dist/${PACKAGE}.app" "$APP_SIGN" # If APP_SIGN is empty will be a noop
 
 info "Creating .DMG"
-hdiutil create -fs HFS+ -volname $PACKAGE -srcfolder dist/$PACKAGE.app dist/electrum-$VERSION.dmg || fail "Could not create .DMG"
+hdiutil create -fs HFS+ -volname "$PACKAGE" -srcfolder "dist/$PACKAGE.app" dist/electrum-$VERSION.dmg || fail "Could not create .DMG"
 
 DoCodeSignMaybe ".DMG" "dist/electrum-${VERSION}.dmg" "$APP_SIGN" # If APP_SIGN is empty will be a noop
 
